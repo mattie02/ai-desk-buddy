@@ -1,0 +1,17 @@
+{
+  "name": "ai-desk-buddy-backend",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "setup": "node setup.mjs",
+    "start": "node --env-file-if-exists=.env server.mjs",
+    "test": "node --test",
+    "timer": "node --env-file-if-exists=.env timer.mjs"
+  },
+  "dependencies": {
+    "ws": "8.23.0"
+  }
+}

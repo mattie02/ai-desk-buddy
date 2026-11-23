@@ -1,0 +1,9 @@
+.pio/
+.pio-core/
+.vscode/
+.DS_Store
+include/secrets.h
+**/.env
+**/.env.*
+!**/.env.example
+backend/node_modules/
