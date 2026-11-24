@@ -9,7 +9,8 @@
     "setup": "node setup.mjs",
     "start": "node --env-file-if-exists=.env server.mjs",
     "test": "node --test",
-    "timer": "node --env-file-if-exists=.env timer.mjs"
+    "timer": "node --env-file-if-exists=.env timer.mjs",
+    "usage": "node --env-file-if-exists=.env usage-cli.mjs"
   },
   "dependencies": {
     "ws": "8.23.0"

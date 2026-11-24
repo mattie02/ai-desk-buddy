@@ -1,5 +1,6 @@
 import { timingSafeEqual } from 'node:crypto';
 import { timerTools, planningInstructions, executeTimerTool } from './timer-tools.mjs';
+import { createUsageTracker } from './usage.mjs';
 import { WebSocket, WebSocketServer } from 'ws';
 
 const RATE = 24000;
@@ -48,6 +49,7 @@ export function createBuddyServer({
   if (mode === 'realtime' && !apiKey) throw new Error('Set OPENAI_API_KEY locally, or use BACKEND_MODE=echo');
   if (!Number.isFinite(gain) || gain < 0 || gain > 1) throw new Error('OUTPUT_GAIN must be between 0 and 1');
   const server = new WebSocketServer({ host, port, maxPayload: 4096 });
+  const usageTracker = createUsageTracker({ model, log });
   let active = null;
   let timerDevice = null;
   const pendingTimers = new Map();
@@ -111,12 +113,14 @@ export function createBuddyServer({
         catch { return reply({ ok: false, code: 'invalid_control' }); }
         if (!command || typeof command !== 'object' || Array.isArray(command)) return reply({ ok: false, code: 'invalid_control' });
         if (!validToken(command.token)) return reply({ ok: false, code: 'unauthorized' });
+        if (command.type === 'usage_status') return reply({ ok: true, ...usageTracker.snapshot() });
         void requestTimer(command).then(reply);
       });
       return;
     }
     if (request.url !== '/buddy') { device.close(1008, 'unknown_path'); return; }
     let upstream;
+    let usageSession;
     let phase = 'auth';
     let turn = 0;
     let bytes = 0;
@@ -166,6 +170,8 @@ export function createBuddyServer({
     function api(event) {
       if (upstream?.readyState !== WebSocket.OPEN) return fail('realtime_disconnected');
       if (upstream.bufferedAmount > 256 * 1024) return fail('upstream_too_slow');
+      if (event.type === 'response.create') usageSession?.begin(turn,
+        event.response?.output_modalities?.[0] === 'text' ? 'planning' : 'reply');
       upstream.send(JSON.stringify(event));
     }
     function idle() {
@@ -261,6 +267,8 @@ export function createBuddyServer({
     function handleUpstream(data) {
       let event;
       try { event = JSON.parse(data.toString()); } catch { return fail('invalid_realtime_json'); }
+      if (event.type === 'response.created') usageSession?.created(event.response);
+      if (event.type === 'response.done') usageSession?.record(event.response);
       if (phase === 'closed') return;
       switch (event.type) {
         case 'session.created':
@@ -336,6 +344,7 @@ export function createBuddyServer({
         turnTimer = setTimeout(() => fail('realtime_setup_timeout'), 20000);
         log(`Device authenticated (${mode}, PCM ${RATE} Hz, playback window ${playbackWindow})`);
         if (mode === 'echo') return idle();
+        usageSession = usageTracker.session();
         try { upstream = makeRealtime(); } catch { return fail('realtime_connect_failed'); }
         upstream.on('message', handleUpstream);
         upstream.on('unexpected-response', (_request, response) => {
@@ -430,6 +439,7 @@ export function createBuddyServer({
     });
     device.on('error', () => fail('device_transport_error'));
     device.on('close', () => {
+      usageSession?.close();
       phase = 'closed';
       clearTimeout(authTimer);
       clearTimeout(turnTimer);

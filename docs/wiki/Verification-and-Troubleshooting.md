@@ -100,3 +100,7 @@ The main loop previously consumed only one mic block per pass, preventing backlo
 Both firmware targets build and all 29 automated tests pass, including tiny audio deltas, the larger bounded window, and overlong reply completion without a reconnect. Hardware short repeated-turn acceptance passed: the user confirmed all three holds worked and audio was smooth.
 
 The physical retest received 2.64, 3.78, and 3.50 seconds of audio. All three replies completed and returned to Ready, each reporting zero playback buffer gaps and zero maximum queue wait. The third turn also received device-confirmed acceptance of a 180-second spoken timer. Capture queue high-water marks were 44/64, 55/64, and 23/64 blocks; maximum audio sends were 173, 178, and 123 ms, with RSSI between −57 and −56 dBm. No capture overflow appeared in those three turns. The queue reached 55/64 blocks, so longer-hold/network-stress testing remains useful; this short bench pass does not establish unlimited jitter tolerance.
+
+## Usage reporting checks
+
+The backend usage feature passes all 35 automated checks, including mixed cached audio/text pricing, unknown/missing usage, duplicate response receipts, cancelled/failed response charges, reconnect totals, bounded history, and authenticated loopback reporting. The live `npm run usage` command returned a zero-response report after restarting the backend. Real voice-turn accounting is pending; historical turns before activation are not backfilled. Firmware was unchanged for this feature.

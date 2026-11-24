@@ -96,6 +96,8 @@ The timer task checks the 64-bit monotonic deadline every 20 ms. It does not wai
 | --- | --- |
 | `backend/server.mjs` | Read local environment/personality and start the listener |
 | `backend/bridge.mjs` | Authentication, voice state machine, Realtime bridge, playback credits, timer receipt routing |
+| `backend/usage.mjs` | Final-response token accounting, pricing snapshot, bounded turn/session history |
+| `backend/usage-cli.mjs` | Authenticated local usage report |
 | `backend/timer-tools.mjs` | Validated function schemas and timer tool execution |
 | `backend/timer.mjs` | Typed start/status/cancel client over loopback |
 | `backend/setup.mjs` | Generate matching local device tokens and configuration files |

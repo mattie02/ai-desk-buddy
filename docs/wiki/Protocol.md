@@ -108,3 +108,7 @@ Spoken tools use a silent planning response, validated arguments, the same devic
 ## Cancellation messages
 
 A targeted request is `{"type":"cancel_timer","request_id":"CANCEL_REQUEST_ID","timer_id":"ORIGINAL_TIMER_ID"}` (plus the token for `/control`). The device replies with `timer_cancel_result`, matching request ID, `accepted`, `duplicate`, `code`, and the usual timer snapshot including `cancelled`. Accepted cancellation must match the target ID and report running=false, cancelled=true. Rejected codes include `timer_changed`, `timer_not_running`, and `timer_elapsed`. Older firmware without the capability receives no cancellation command.
+
+## Local usage reporting
+
+An authenticated loopback control client can send `{"type":"usage_status","token":"GENERATED_DEVICE_TOKEN"}`. The Mac returns a read-only report with `ok:true`, pricing metadata, process totals, and bounded recent session/turn history. It sends no ESP32 command and creates no API response. See [Usage and costs](Usage-and-Costs.md).

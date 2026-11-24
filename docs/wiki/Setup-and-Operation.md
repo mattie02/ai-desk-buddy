@@ -110,3 +110,7 @@ See [Focus timer](Focus-Timer.md) for acknowledgement and offline semantics. Tim
 | `d` | No local status demo | Thinking/Speaking demo and test tone |
 
 Opening a serial port can reset this board. Open the monitor before starting a timer and leave it open through an offline test.
+
+## Read API usage
+
+From `backend/`, run `npm run usage` or `npm run usage -- --json`. These commands query the running Mac backend and make no API call. See [Usage and costs](Usage-and-Costs.md) for per-turn/session totals, pricing, and reset behavior.

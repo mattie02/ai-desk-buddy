@@ -29,3 +29,7 @@ npm run timer -- status
 See [timer behavior and offline testing](../docs/wiki/Focus-Timer.md). See [spoken timers](../docs/wiki/Spoken-Timers.md) for voice actions and targeted cancellation.
 
 Run `npm test` for the localhost protocol tests and native firmware clock checks. These do not call OpenAI. The [verification record](../docs/wiki/Verification-and-Troubleshooting.md) distinguishes automated checks from actual hardware acceptance.
+
+## Usage and cost estimates
+
+Run `npm run usage` for per-turn, session, and process totals, or `npm run usage -- --json` for structured output. Both silent planning and spoken replies count. Totals start when the backend starts and reset on restart. See [Usage and costs](../docs/wiki/Usage-and-Costs.md) for pricing sources, missing-receipt handling, and limits.

@@ -11,15 +11,19 @@
 
 ## Completed: spoken timer tools
 
-Spoken start/status/cancel and targeted typed cancellation are implemented. See [Spoken timers](Spoken-Timers.md) for behavior. Both firmware builds and 29 automated tests pass. The user confirmed that spoken start, time-left status, and cancellation all worked, with smooth audio.
+Spoken start/status/cancel and targeted typed cancellation are implemented. See [Spoken timers](Spoken-Timers.md) for behavior. Both firmware builds and 35 automated tests pass. The user confirmed that spoken start, time-left status, and cancellation all worked, with smooth audio.
 
 Bench acceptance passed for spoken start/status/cancel and smooth audio. The updated firmware also passed physical targeted cancellation and Wi-Fi-disconnected completion checks. Busy and lost-receipt behavior are covered by automated tests; those fault outcomes have not been separately confirmed by listening on hardware.
 
-## Next: reliability checks
+## Reliability checks (deferred)
 
 A later repeated-turn test exposed microphone queue overflows, playback gaps, and an overlong-reply disconnect. Capture batch draining, larger/refilling playback buffers, packet coalescing, and graceful reply limits are implemented; the user confirmed three successful holds and smooth playback in the hardware retest, with zero logged playback gaps. Longer-hold and network-stress checks remain. See [verification](Verification-and-Troubleshooting.md).
 
-Run longer network outages and repeated voice turns, including busy starts and lost-receipt recovery. Record actual results and confirm there are no false success claims, timer restarts, or audio regressions. Then add usage/cost reporting from actual API responses.
+Run longer network outages and repeated voice turns, including busy starts and lost-receipt recovery. Record actual results and confirm there are no false success claims, timer restarts, or audio regressions. Network stress testing is deferred at the user’s request.
+
+## Implemented: API usage and cost reporting
+
+The backend counts final-response usage for silent planning and spoken replies, applies a verified pricing snapshot, and provides `npm run usage` for turn/session/process totals. Missing usage and unknown prices remain explicitly incomplete. All 35 tests pass; a real voice-turn accounting check is pending. See [Usage and costs](Usage-and-Costs.md).
 
 ## Later work
 
@@ -27,7 +31,7 @@ Run longer network outages and repeated voice turns, including busy starts and l
 | --- | --- |
 | Timer durability | Decide whether reset/power-loss persistence is required; add durable state/time source only if needed |
 | Reliability | Longer network-outage and repeated-turn runs; distinguish provider gaps from device underruns |
-| Cost visibility | Add usage/cost reporting from actual API responses rather than relying on rough estimates |
+| Cost visibility | Process-local usage/cost reporting is implemented; persistent history and account-wide billing are not included |
 | Operation | Optional managed backend startup and clearer recovery UX; currently `npm start` must remain running |
 | Interaction | Decide whether barge-in is wanted; currently a reply cannot be interrupted by a fresh touch |
 | Hardware | Confirm exact touch IC; document the exact dev board VIN/USB power path and UART0 bridge wiring |

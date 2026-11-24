@@ -4,6 +4,11 @@ import { EventEmitter, once } from 'node:events';
 import { WebSocket } from 'ws';
 import { createBuddyServer, echoLevelGain } from './bridge.mjs';
 
+const USAGE = { input_tokens: 120, output_tokens: 20,
+  input_token_details: { text_tokens: 100, audio_tokens: 20, cached_tokens: 50,
+    cached_tokens_details: { text_tokens: 50, audio_tokens: 0 } },
+  output_token_details: { text_tokens: 10, audio_tokens: 10 } };
+
 const TOKEN = 'test-device-token-with-24-characters';
 class Inbox {
   queue = [];
@@ -328,6 +333,10 @@ test('upstream failure closes the turn and releases the single-device slot', { t
 
 class ToolRealtime extends MockRealtime {
   constructor(call) { super(); this.call = call; }
+  emitEvent(event) {
+    if (event.type === 'response.done') event = { ...event, response: { ...event.response, usage: USAGE } };
+    super.emitEvent(event);
+  }
   send(text) {
     const event = JSON.parse(text);
     this.events.push(event);
@@ -358,7 +367,7 @@ class ToolRealtime extends MockRealtime {
 async function toolFixture(t, name, args = {}) {
   let upstream;
   const call = name ? { type: 'function_call', call_id: 'call_test', name, arguments: JSON.stringify(args) } : null;
-  const { connect } = await fixture(t, { mode: 'realtime', apiKey: 'dummy', instructions: 'test personality',
+  const { connect, control } = await fixture(t, { mode: 'realtime', apiKey: 'dummy', instructions: 'test personality',
     makeRealtime: () => (upstream = new ToolRealtime(call)) });
   const device = await connect(TOKEN, { timer_support: 1, timer_cancel_support: 1, playback_window: 16 });
   await device.inbox.type('ready');
@@ -366,7 +375,7 @@ async function toolFixture(t, name, args = {}) {
   device.socket.send(Buffer.alloc(2400));
   device.socket.send(Buffer.alloc(2400));
   device.send({ type: 'end', turn: 1 });
-  return { device, upstream };
+  return { device, upstream, control };
 }
 const toolOutput = event => event.type === 'conversation.item.create' && event.item.type === 'function_call_output';
 
@@ -439,6 +448,22 @@ test('ordinary conversation passes the silent plan and still uses buffered audio
   const { device, upstream } = await toolFixture(t, null);
   assert.equal((await finishPlayback(device, 1)).length, 2048);
   assert.ok(!upstream.events.some(toolOutput));
+});
+
+test('authenticated usage report includes planning and speech once, even with a replayed planning completion', { timeout: 5000 }, async t => {
+  const { device, control } = await toolFixture(t, null);
+  await finishPlayback(device, 1);
+  const denied = await control({ type: 'usage_status', token: 'incorrect' });
+  assert.equal((await denied.inbox.next(item => item.code)).code, 'unauthorized');
+  const caller = await control({ type: 'usage_status' });
+  const report = await caller.inbox.next(item => item.ok);
+  assert.equal(report.totals.requests, 2);
+  assert.equal(report.totals.responses, 2);
+  assert.equal(report.totals.input_tokens, 240);
+  assert.equal(report.totals.cached_input_tokens, 100);
+  assert.equal(report.totals.estimated_cost_usd, 0.00348);
+  assert.equal(report.sessions[0].recent_turns[0].responses, 2);
+  assert.ok(!JSON.stringify(report).includes(TOKEN));
 });
 
 test('malformed accepted cancellation cannot confirm success', { timeout: 5000 }, async t => {
