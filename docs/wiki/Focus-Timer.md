@@ -28,7 +28,7 @@ The optional third argument reuses a request ID: `npm run timer -- start 25m REQ
 
 The clock uses the ESP32's 64-bit monotonic timer. A dedicated task checks the deadline every 20 ms, independently of Wi-Fi, OpenAI, and the main network loop. Remaining time is shown on the OLED. During a voice turn, voice status remains in the large area with the remaining time in the header.
 
-At expiry the ESP32 shows `Time up` and the local playback task plays two chimes. An alarm takes priority over an ongoing voice reply; any interrupted voice session reconnects afterward. A network outage cannot cancel the countdown or require a remote command to play the alarm. Device status and completion notifications to the Mac are best effort while offline; query status after reconnecting for the current state.
+At expiry the ESP32 shows `Time up` and the local playback task plays two chimes. The large completion notice lasts eight seconds, then returns to the current voice/connection status; `FOCUS COMPLETE` remains in the header. The completed timer state is retained until a new timer or reset. An alarm takes priority over an ongoing voice reply; any interrupted voice session reconnects afterward. A network outage cannot cancel the countdown or require a remote command to play the alarm. Device status and completion notifications to the Mac are best effort while offline; query status after reconnecting for the current state.
 
 The timer survives Wi-Fi/backend outages, **not ESP32 reset or power loss**. Opening a serial monitor may reset this board, so open it before starting a bench timer and leave it open until the test finishes.
 

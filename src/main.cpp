@@ -45,6 +45,9 @@ bool oledDirty = true;
 bool toneActive = false;
 bool thinkingDemo = false;
 uint32_t demoStartedAt = 0;
+bool completionNotice = false;
+uint32_t completionNoticeStartedAt = 0;
+constexpr uint32_t kCompletionNoticeMs = 8000;
 
 void renderStatus() {
   if (!oledDirty) return;
@@ -60,7 +63,7 @@ void renderStatus() {
   snprintf(countdown, sizeof(countdown), "%02lu:%02lu", static_cast<unsigned long>(timer.remaining / 60), static_cast<unsigned long>(timer.remaining % 60));
   if (!audioFault && !toneActive && voiceIdle()) {
     if (timer.running) status = countdown;
-    else if (timer.completed) status = "Time up";
+    else if (timer.completed && completionNotice) status = "Time up";
   }
   Serial.printf("OLED status: %s (%s)\n", status, kVoiceBuild ? "voice build" : "local bench test");
   if (!oledReady) return;
@@ -417,6 +420,14 @@ void loop() {
   static uint32_t lastRemaining = UINT32_MAX;
   static bool lastCompleted = false;
   static bool lastCancelled = false;
+  if (timer.completed && !lastCompleted) {
+    completionNotice = true;
+    completionNoticeStartedAt = millis();
+  }
+  if (completionNotice && (!timer.completed || millis() - completionNoticeStartedAt >= kCompletionNoticeMs)) {
+    completionNotice = false;
+    oledDirty = true;
+  }
   if (timer.remaining != lastRemaining || timer.completed != lastCompleted || timer.cancelled != lastCancelled) {
     lastRemaining = timer.remaining;
     lastCompleted = timer.completed;
