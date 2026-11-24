@@ -9,13 +9,15 @@
 3. Mac backend, held audio streaming, local echo, Realtime replies, backend-only API key/voice/personality, capture/playback buffering, listening checks.
 4. Typed start/status timer commands, device acknowledgement before success, local OLED countdown/chimes, and Wi-Fi-disconnected completion test.
 
-## Current milestone: spoken timer tools
+## Completed: spoken timer tools
 
-Spoken start/status/cancel and targeted typed cancellation are implemented. See [Spoken timers](Spoken-Timers.md) for behavior. Both firmware builds and 26 automated tests pass. Hardware acceptance of the new voice commands is pending.
+Spoken start/status/cancel and targeted typed cancellation are implemented. See [Spoken timers](Spoken-Timers.md) for behavior. Both firmware builds and 26 automated tests pass. The user confirmed that spoken start, time-left status, and cancellation all worked, with smooth audio.
 
-Acceptance still requires spoken start/status/cancel, truthful busy/uncertain outcomes, countdown survival after Wi-Fi loss, and a smooth-audio regression check. The previously verified offline countdown remains a separate earlier bench result.
+Bench acceptance passed for spoken start/status/cancel and smooth audio. The updated firmware also passed physical targeted cancellation and Wi-Fi-disconnected completion checks. Busy and lost-receipt behavior are covered by automated tests; those fault outcomes have not been separately confirmed by listening on hardware.
 
-After this acceptance, the next reliability work is longer outages and repeated voice turns, followed by usage/cost reporting from actual API responses.
+## Next: reliability checks
+
+Run longer network outages and repeated voice turns, including busy starts and lost-receipt recovery. Record actual results and confirm there are no false success claims, timer restarts, or audio regressions. Then add usage/cost reporting from actual API responses.
 
 ## Later work
 

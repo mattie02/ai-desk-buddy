@@ -1,6 +1,6 @@
 # AI Desk Buddy documentation
 
-**Snapshot: November 23, 2026 — spoken timer implementation; hardware voice acceptance pending.**
+**Snapshot: November 23, 2026 — spoken timer implementation; spoken timer bench acceptance passed.**
 
 AI Desk Buddy is a working breadboard prototype: hold a capacitive touch pad, speak, release it, and hear an AI reply. An ESP32 drives the microphone, amplifier, speaker, OLED, and local focus countdown. A Mac handles network sessions, OpenAI credentials, voice, personality, and reply gain.
 
@@ -16,9 +16,10 @@ AI Desk Buddy is a working breadboard prototype: hold a capacitive touch pad, sp
 | OpenAI Realtime voice | Audible AI replies confirmed |
 | Buffered playback | User reported smooth playback after the stutter fix |
 | Typed local focus timer | 10-second countdown and two chimes verified with ESP32 Wi-Fi held off |
+| Spoken focus timer | User confirmed start, time-left status, cancellation, and smooth audio |
 | Automated checks | Last run: 26 tests passed; both firmware targets build |
 
-Spoken timer tools and targeted typed cancellation are implemented; hardware voice acceptance is pending. **Not implemented:** timer persistence across reset/power loss and an enclosure/single-cable design.
+Spoken timer tools and targeted typed cancellation are implemented; the user confirmed spoken start/status/cancel and smooth audio. **Not implemented:** timer persistence across reset/power loss and an enclosure/single-cable design.
 
 ## Find the right guide
 
