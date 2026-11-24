@@ -23,7 +23,7 @@ Run longer network outages and repeated voice turns, including busy starts and l
 
 ## Implemented: API usage and cost reporting
 
-The backend counts final-response usage for silent planning and spoken replies, applies a verified pricing snapshot, and provides `npm run usage` for turn/session/process totals. Missing usage and unknown prices remain explicitly incomplete. All 35 tests pass; a real voice-turn accounting check is pending. See [Usage and costs](Usage-and-Costs.md).
+The backend counts final-response usage for silent planning and spoken replies, applies a verified pricing snapshot, and provides `npm run usage` for turn/session/process totals. Missing usage and unknown prices remain explicitly incomplete. All 35 tests pass. Live verification also passed: the user confirmed hearing the reply and the authenticated usage report returned a complete estimate. See [Usage and costs](Usage-and-Costs.md).
 
 ## Later work
 

@@ -45,4 +45,4 @@ These are estimates for this process, not an invoice or remaining API-credit bal
 
 ## Verification
 
-All 35 automated tests pass, covering mixed text/audio cached pricing, missing/invalid usage, unknown models, duplicate events, cancellation/failure usage, reconnect totals, bounded history, authenticated reporting, and existing audio/timer regressions. The local CLI starts and reads the live backend. Verification of a real voice turn's usage is pending.
+All 35 automated tests pass, covering mixed text/audio cached pricing, missing/invalid usage, unknown models, duplicate events, cancellation/failure usage, reconnect totals, bounded history, authenticated reporting, and existing audio/timer regressions. The local CLI starts and reads the live backend. Live verification passed: the user confirmed hearing the reply, and the authenticated report returned a complete estimate covering planning and speech. Actual usage and cost records remain local and are not published in this wiki.

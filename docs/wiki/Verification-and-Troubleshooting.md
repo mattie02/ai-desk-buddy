@@ -103,8 +103,12 @@ The physical retest received 2.64, 3.78, and 3.50 seconds of audio. All three re
 
 ## Usage reporting checks
 
-The backend usage feature passes all 35 automated checks, including mixed cached audio/text pricing, unknown/missing usage, duplicate response receipts, cancelled/failed response charges, reconnect totals, bounded history, and authenticated loopback reporting. The live `npm run usage` command returned a zero-response report after restarting the backend. Real voice-turn accounting is pending; historical turns before activation are not backfilled. Firmware was unchanged for this feature.
+The backend usage feature passes all 35 automated checks, including mixed cached audio/text pricing, unknown/missing usage, duplicate response receipts, cancelled/failed response charges, reconnect totals, bounded history, and authenticated loopback reporting. The live `npm run usage` command returned a zero-response report after restarting the backend. Real voice-turn accounting subsequently passed; historical turns before activation are not backfilled. Firmware was unchanged for this feature.
 
 ## Completion display recovery
 
 During the first usage-reporting check, the user saw `Time up`. A device-confirmed status query showed the earlier 180-second timer had completed; the backend was connected and no new API response had been requested. The completed-timer notice previously overrode Ready/Offline indefinitely. It now expires after eight seconds, restoring the current voice/connection status while retaining `FOCUS COMPLETE` in the header and the completed timer state. Both firmware targets built, the voice firmware uploaded with flash hash verification, and a device-accepted two-second timer completed. Serial rendering diagnostics showed `Time up`, local completion tone, and return to Ready after 8.0 seconds. The completed timer remains available through status. The first bench attempt was not dispatched because serial attachment had reset the board and reconnection was still pending; the successful attempt waited for confirmed Realtime Ready.
+
+## Live usage acceptance
+
+The user confirmed hearing the reply. The authenticated local report returned a complete estimate covering both silent planning and spoken output. Actual token counts, cache counts, and cost records remain local and are not published here. This validates usage reporting; network stress testing remains deferred.
