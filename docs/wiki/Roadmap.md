@@ -25,20 +25,15 @@ Run longer network outages and repeated voice turns, including busy starts and l
 
 The backend counts final-response usage for silent planning and spoken replies, applies a verified pricing snapshot, and provides `npm run usage` for turn/session/process totals. Missing usage and unknown prices remain explicitly incomplete. All 36 tests pass. Live verification also passed: the user confirmed hearing the reply and the authenticated usage report returned a complete estimate. See [Usage and costs](Usage-and-Costs.md).
 
-## Current: Wi-Fi setup from a phone
+## Implemented: Wi-Fi setup from a phone
 
-Add a local setup flow so changing Wi-Fi does not require editing `secrets.h` or reflashing. The firmware implementation and 36 automated checks are complete; phone/hardware acceptance is pending.
+Phone setup is implemented in the voice firmware. Hold the pad through EN/RESET until AP/PW instructions appear, join the protected temporary network, and open the local setup page. New credentials are tested before saving one device profile; successful profiles take priority over legacy firmware fallbacks. Ordinary push-to-talk holds do not enter setup. See [Wi-Fi setup](Wi-Fi-Setup.md).
 
-1. Hold the touch pad during startup to explicitly enter setup mode.
-2. Show a temporary, password-protected access point's name and setup instructions on the OLED.
-3. Connect a phone and use a local browser page to select a 2.4 GHz network and enter its password.
-4. Test the new connection before replacing the working configuration, save successful settings in device storage, and close setup mode.
+Both firmware builds and all 36 automated tests pass. On the current board, the user confirmed page access, wrong-password failure and recovery to Ready, successful save, restart to Ready, and an audible voice reply. A post-setup local timer also completed and remained queryable. No credentials are published in the repository or wiki.
 
-Define a timeout, retry path, and recovery flow for invalid credentials or an unavailable network. Keep credentials out of logs and source control. Preserve normal short boot behavior and avoid triggering setup during ordinary push-to-talk holds. Choose the provisioning implementation against the pinned ESP32 framework before coding.
+Fresh-device automatic setup without a fallback, open-network provisioning, and the full five-minute setup timeout remain separate hardware checks. Reset/power-loss timer persistence is still not implemented; entering setup through reset clears any running timer.
 
-Acceptance: provision a fresh device, change networks without reflashing, reject an incorrect password with a useful message, recover access to setup, retain credentials across restart, and verify voice/audio and local timers after setup.
-
-## Following: remote backend hosting
+## Next: remote backend hosting
 
 Move the existing Node backend to an always-running remote server so the Mac is no longer required for voice replies. API credentials, model, voice, personality, and usage reporting remain backend-owned; accepted countdowns and completion chimes remain on the ESP32. This is planned, not deployed.
 

@@ -2,7 +2,7 @@
 
 [Documentation home](Home.md) · [Setup and operation](Setup-and-Operation.md)
 
-Implemented in the `esp32voice` firmware using the pinned Arduino ESP32 framework. The bench diagnostic target does not open a setup network. Hardware provisioning acceptance is pending.
+Implemented in the `esp32voice` firmware using the pinned Arduino ESP32 framework. The bench diagnostic target does not open a setup network. The current-board phone workflow is bench verified: the page opens, failed credentials preserve the previous configuration, and the user confirmed a successful save, restart to Ready, and audible reply.
 
 ## Enter setup
 
@@ -43,6 +43,6 @@ Voice capture/turns are paused during setup. Normal audio and timer tasks resume
 
 The local HTTP service is bound to the AP interface and only runs during setup. The AP uses a random password shown only on the OLED. State-changing requests require the setup-session nonce. Requests have bounded headers/body and a three-second read deadline; form decoding rejects embedded control/NUL characters, duplicate required fields, and truncation. Network names are rendered as data rather than HTML.
 
-Native checks cover profile validation, record corruption/version rejection, boot gesture/release/wrap behavior, HTTP bounds, duplicate length headers, host checks, malformed form encodings, and randomized malformed input under address/undefined-behavior sanitizers. The full suite passes 36 tests. Both firmware targets build, the voice firmware uploaded with flash hash verification, and normal startup reached Realtime Ready using the existing fallback. A phone test, wrong-password recovery, saved-profile reboot, and voice/timer regression checks remain pending.
+Native checks cover profile validation, record corruption/version rejection, boot gesture/release/wrap behavior, HTTP bounds, duplicate length headers, host checks, malformed form encodings, and randomized malformed input under address/undefined-behavior sanitizers. The full suite passes 36 tests. Both firmware targets build, the voice firmware uploaded with flash hash verification, and normal startup reached Realtime Ready using the existing fallback. The user confirmed page access, wrong-password failure followed by Ready after Exit, and a successful save followed by restart to Ready and an audible reply. Serial also recorded candidate failures and a successful save. A post-setup two-second timer was device-confirmed, finished locally with its tone, returned the display to Ready, and reported completed status. Fresh-device automatic setup without a legacy fallback, open-network provisioning, and the full five-minute timeout have not been separately bench verified.
 
 References: [ESP32 Wi-Fi API](https://docs.espressif.com/projects/arduino-esp32/en/latest/api/wifi.html), [Preferences storage](https://docs.espressif.com/projects/arduino-esp32/en/latest/api/preferences.html). Implementation was checked against the locally pinned Arduino 2.0.17 headers/source, not just the latest online API.
