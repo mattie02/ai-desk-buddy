@@ -63,7 +63,7 @@ The offline bench target keeps 16 kHz I²S, a PCM24 meter, and 100 kHz OLED tran
 2. Backend opens/configures Realtime with automatic turn detection disabled, then sends Ready.
 3. An accepted touch press begins a turn. The capture queue is reset to avoid retaining idle samples.
 4. While held, the device batches and streams PCM. On release it stops tagging the turn and flushes queued audio and its final partial packet.
-5. Backend commits the input; only after the commit acknowledgement does it request a response.
+5. Backend commits input, then requests a silent text-only tool plan. A validated timer call waits for its device receipt; the backend adds the function result before requesting audible speech with tools disabled. Ordinary conversation also passes through this planning step.
 6. Realtime audio deltas are decoded, volume-adjusted, packetized, and sent within the device's credit window.
 7. ESP32 prebuffers and plays the reply. End-of-audio releases short replies from the prebuffer wait.
 8. The worker drains output. Final credits and `playback_done` go to the Mac; the Mac then sends Ready.
@@ -88,7 +88,7 @@ sequenceDiagram
     ESP->>Audio: Play local two-chime alarm
 ```
 
-The timer task checks the 64-bit monotonic deadline every 20 ms. It does not wait on network I/O. Alarm playback takes priority over remote voice audio and can interrupt a voice session. Countdown state lives in RAM; a reset/power loss cancels it. There is no current cancellation command or persistent timer journal.
+The timer task checks the 64-bit monotonic deadline every 20 ms. It does not wait on network I/O. Alarm playback takes priority over remote voice audio and can interrupt a voice session. Countdown state lives in RAM; a reset/power loss cancels it. Targeted cancellation is available; there is no persistent timer journal.
 
 ## Backend responsibilities
 
@@ -96,7 +96,8 @@ The timer task checks the 64-bit monotonic deadline every 20 ms. It does not wai
 | --- | --- |
 | `backend/server.mjs` | Read local environment/personality and start the listener |
 | `backend/bridge.mjs` | Authentication, voice state machine, Realtime bridge, playback credits, timer receipt routing |
-| `backend/timer.mjs` | Typed start/status client over loopback |
+| `backend/timer-tools.mjs` | Validated function schemas and timer tool execution |
+| `backend/timer.mjs` | Typed start/status/cancel client over loopback |
 | `backend/setup.mjs` | Generate matching local device tokens and configuration files |
 | `backend/personality.txt` | Conversational behavior and current action restrictions |
 | `backend/.env.example` | Non-secret configuration template |

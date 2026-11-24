@@ -34,4 +34,23 @@ int main() {
   assert(longClock.start("overflow", 1, std::numeric_limits<uint64_t>::max() - 500) == R::Invalid);
   assert(longClock.start("day", 86400, 0) == R::Accepted);
   assert(longClock.remaining(0) == 86400);
+  using C = FocusClock::CancelResult;
+  FocusClock cancelClock;
+  assert(cancelClock.cancel("missing", 0) == C::NotFound);
+  assert(cancelClock.start("cancel-me", 10, 1000) == R::Accepted);
+  assert(cancelClock.cancel("another", 2000) == C::NotFound);
+  assert(cancelClock.running());
+  assert(cancelClock.cancel("cancel-me", 2000) == C::Cancelled);
+  assert(cancelClock.cancelled() && !cancelClock.completed() && !cancelClock.running());
+  assert(cancelClock.remaining(2000) == 0 && !cancelClock.poll(99999));
+  assert(cancelClock.cancel("cancel-me", 3000) == C::Duplicate);
+  assert(cancelClock.start("cancel-me", 10, 3000) == R::Duplicate);
+  assert(cancelClock.cancelled()); // A retried start must not revive a cancelled timer.
+  assert(cancelClock.start("new-timer", 2, 5000) == R::Accepted);
+  assert(!cancelClock.cancelled());
+  assert(cancelClock.cancel("cancel-me", 6000) == C::NotFound); // Stale cancellation cannot stop a new timer.
+  assert(cancelClock.cancel("new-timer", 7000) == C::Elapsed);
+  assert(cancelClock.poll(7000)); // Expiry wins and still emits exactly one alarm.
+  assert(cancelClock.cancel("new-timer", 7001) == C::NotRunning);
+  assert(!cancelClock.poll(7001));
 }

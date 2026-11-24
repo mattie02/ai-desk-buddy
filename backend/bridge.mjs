@@ -1,4 +1,5 @@
 import { timingSafeEqual } from 'node:crypto';
+import { timerTools, planningInstructions, executeTimerTool } from './timer-tools.mjs';
 import { WebSocket, WebSocketServer } from 'ws';
 
 const RATE = 24000;
@@ -6,9 +7,9 @@ const MAX_TURN_BYTES = RATE * 2 * 15;
 const MAX_REPLY_BYTES = RATE * 2 * 30;
 const PACKET_BYTES = 1024;
 
-export function sessionUpdate({ model, voice, instructions }) {
+export function sessionUpdate({ model, voice, instructions, tools = [] }) {
   return { type: 'session.update', session: {
-    type: 'realtime', model, instructions, output_modalities: ['audio'],
+    type: 'realtime', model, instructions, output_modalities: ['audio'], tools, tool_choice: 'auto',
     audio: {
       input: { format: { type: 'audio/pcm', rate: RATE }, turn_detection: null },
       output: { format: { type: 'audio/pcm', rate: RATE }, voice },
@@ -50,6 +51,7 @@ export function createBuddyServer({
   let active = null;
   let timerDevice = null;
   const pendingTimers = new Map();
+  const cancelDevices = new WeakSet();
   const validId = id => typeof id === 'string' && /^[a-zA-Z0-9_-]{1,64}$/.test(id);
   const validToken = value => {
     const provided = Buffer.from(typeof value === 'string' ? value : '');
@@ -62,6 +64,29 @@ export function createBuddyServer({
     clearTimeout(pending.timeout);
     pendingTimers.delete(id);
     pending.reply(result);
+  }
+  function requestTimer(command, expectedDevice = timerDevice) {
+    const { type, request_id: id, seconds, timer_id: timerId } = command;
+    const result = value => Promise.resolve({ request_id: id, ...value });
+    if (!validId(id) || !['start_timer', 'timer_status', 'cancel_timer'].includes(type) ||
+        (type === 'start_timer' && (!Number.isInteger(seconds) || seconds < 1 || seconds > 86400)) ||
+        (type === 'cancel_timer' && !validId(timerId))) {
+      return result({ ok: false, code: 'invalid_timer_command', outcome: 'not_sent' });
+    }
+    if (!expectedDevice || expectedDevice !== timerDevice || expectedDevice.readyState !== WebSocket.OPEN) {
+      return result({ ok: false, code: 'timer_device_offline', outcome: 'not_sent' });
+    }
+    if (type === 'cancel_timer' && !cancelDevices.has(expectedDevice)) return result({ ok: false, code: 'cancel_not_supported', outcome: 'not_sent' });
+    if (pendingTimers.has(id) || pendingTimers.size >= 16) return result({ ok: false, code: 'command_pending', outcome: 'not_sent' });
+    return new Promise(reply => {
+      const pending = { device: expectedDevice, reply, type, seconds, timerId,
+        timeout: setTimeout(() => timerReply(id, { ok: false, code: 'device_ack_timeout', request_id: id, outcome: 'unknown' }), 5000) };
+      pendingTimers.set(id, pending);
+      expectedDevice.send(JSON.stringify({ type, request_id: id,
+        ...(type === 'start_timer' ? { seconds } : {}), ...(type === 'cancel_timer' ? { timer_id: timerId } : {}) }), error => {
+        if (error) timerReply(id, { ok: false, code: 'device_send_failed', request_id: id, outcome: 'unknown' });
+      });
+    });
   }
   server.on('connection', (device, request) => {
     if (request.url === '/control') {
@@ -84,21 +109,9 @@ export function createBuddyServer({
         let command;
         try { if (binary) throw new Error(); command = JSON.parse(data.toString()); }
         catch { return reply({ ok: false, code: 'invalid_control' }); }
-        const { type, request_id: id, seconds } = command;
+        if (!command || typeof command !== 'object' || Array.isArray(command)) return reply({ ok: false, code: 'invalid_control' });
         if (!validToken(command.token)) return reply({ ok: false, code: 'unauthorized' });
-        if (!validId(id) || !['start_timer', 'timer_status'].includes(type) ||
-            (type === 'start_timer' && (!Number.isInteger(seconds) || seconds < 1 || seconds > 86400))) {
-          return reply({ ok: false, code: 'invalid_timer_command' });
-        }
-        if (!timerDevice || timerDevice.readyState !== WebSocket.OPEN) return reply({ ok: false, code: 'timer_device_offline', request_id: id, outcome: 'not_sent' });
-        if (pendingTimers.has(id) || pendingTimers.size >= 16) return reply({ ok: false, code: 'command_pending', request_id: id });
-        const destination = timerDevice;
-        const pending = { device: destination, reply, type, seconds,
-          timeout: setTimeout(() => timerReply(id, { ok: false, code: 'device_ack_timeout', request_id: id, outcome: 'unknown' }), 5000) };
-        pendingTimers.set(id, pending);
-        destination.send(JSON.stringify({ type, request_id: id, ...(type === 'start_timer' ? { seconds } : {}) }), error => {
-          if (error) timerReply(id, { ok: false, code: 'device_send_failed', request_id: id, outcome: 'unknown' });
-        });
+        void requestTimer(command).then(reply);
       });
       return;
     }
@@ -115,6 +128,8 @@ export function createBuddyServer({
     let inFlight = 0;
     let playbackWindow = 1; // Backward compatible with the original device firmware.
     let replyDone = false;
+    let toolsEnabled = false;
+    const handledResponses = new Set();
     let finishSent = false;
     let ackTimer;
     let alive = true;
@@ -190,13 +205,37 @@ export function createBuddyServer({
       }
       pump();
     }
+    async function completePlan(output) {
+      const calls = output.filter(item => item.type === 'function_call');
+      if (calls.length > 4) return fail('too_many_tool_calls');
+      const ids = new Set();
+      for (const call of calls) {
+        if (typeof call.call_id !== 'string' || !/^[a-zA-Z0-9_-]{1,128}$/.test(call.call_id) || ids.has(call.call_id)) return fail('invalid_tool_call');
+        ids.add(call.call_id);
+      }
+      for (const call of calls) {
+        if (phase !== 'tools') return;
+        // Multiple actions in one utterance require clarification, not implicit sequencing.
+        const result = calls.length !== 1 ? { ok: false, code: 'one_timer_action_per_turn', outcome: 'not_sent' } :
+          await executeTimerTool(call.name, call.arguments, command => requestTimer(command, device));
+        if (phase !== 'tools') return;
+        log(`Voice timer tool ${String(call.name).replace(/[^a-z_]/g, '').slice(0, 40)}: ${result.code}`);
+        api({ type: 'conversation.item.create', item: { type: 'function_call_output', call_id: call.call_id, output: JSON.stringify(result) } });
+      }
+      if (phase !== 'tools') return;
+      phase = 'responding';
+      // Only this response can reach the speaker. Planning cannot speak early success.
+      api({ type: 'response.create', response: { output_modalities: ['audio'], tools: [], tool_choice: 'none',
+        instructions: `${instructions || ''}\nAnswer the latest user request now. Ignore NO_TOOL planning text. Use only the current tool receipt for timer claims. If no tool ran, never claim a device action or invent remaining time. If a duration is missing, ask for it. If multiple actions were rejected, ask for one at a time. An unknown outcome means the command may have taken effect: say you could not confirm it and suggest checking the screen; do not retry. Read busy/offline/rejected outcomes truthfully. A duplicate start does not restart the timer.`,
+      } });
+    }
     function handleUpstream(data) {
       let event;
       try { event = JSON.parse(data.toString()); } catch { return fail('invalid_realtime_json'); }
       if (phase === 'closed') return;
       switch (event.type) {
         case 'session.created':
-          api(sessionUpdate({ model, voice, instructions }));
+          api(sessionUpdate({ model, voice, instructions, tools: toolsEnabled ? timerTools : [] }));
           break;
         case 'session.updated':
           if (phase === 'connecting') {
@@ -206,16 +245,27 @@ export function createBuddyServer({
           break;
         case 'input_audio_buffer.committed':
           if (phase === 'committing') {
-            phase = 'responding';
-            api({ type: 'response.create' });
+            phase = toolsEnabled ? 'planning' : 'responding';
+            api(toolsEnabled ? { type: 'response.create', response: { output_modalities: ['text'], instructions: planningInstructions } } : { type: 'response.create' });
           }
           break;
         case 'response.output_audio.delta':
           if (phase === 'responding') enqueue(Buffer.from(event.delta, 'base64'));
           break;
         case 'response.done':
-          if (phase !== 'responding') break;
+          if (!['planning', 'responding'].includes(phase)) break;
+          if (event.response?.id && handledResponses.has(event.response.id)) break;
           if (event.response?.status !== 'completed') return fail('response_not_completed');
+          if (event.response.id) {
+            if (handledResponses.size >= 128) handledResponses.delete(handledResponses.values().next().value);
+            handledResponses.add(event.response.id);
+          }
+          if (phase === 'planning') {
+            phase = 'tools';
+            void completePlan(event.response.output || []).catch(() => fail('tool_execution_error'));
+            break;
+          }
+          if (event.response.output?.some(item => item.type === 'function_call')) return fail('unexpected_final_tool');
           replyDone = true;
           pump();
           break;
@@ -248,6 +298,7 @@ export function createBuddyServer({
         if (active) return fail('device_already_connected');
         active = device;
         if (message.timer_support === 1) timerDevice = device;
+        if (message.timer_support === 1 && message.timer_cancel_support === 1) { cancelDevices.add(device); toolsEnabled = true; }
         clearTimeout(authTimer);
         phase = 'connecting';
         turnTimer = setTimeout(() => fail('realtime_setup_timeout'), 20000);
@@ -263,18 +314,28 @@ export function createBuddyServer({
         upstream.on('close', () => fail('realtime_closed'));
         return;
       }
-      if (message.type === 'timer_result' || message.type === 'timer_status') {
+      if (message.type === 'timer_result' || message.type === 'timer_status' || message.type === 'timer_cancel_result') {
         const pending = pendingTimers.get(message.request_id);
         if (!pending || pending.device !== device) return;
-        if (message.type !== (pending.type === 'start_timer' ? 'timer_result' : 'timer_status')) return fail('invalid_timer_receipt');
+        if (message.type !== (pending.type === 'start_timer' ? 'timer_result' : pending.type === 'cancel_timer' ? 'timer_cancel_result' : 'timer_status')) return fail('invalid_timer_receipt');
         if (pending.type === 'start_timer' && (typeof message.accepted !== 'boolean' ||
             (message.accepted && message.seconds !== pending.seconds))) return fail('invalid_timer_receipt');
+        if (pending.type === 'cancel_timer' && (typeof message.accepted !== 'boolean' ||
+            (message.accepted && (message.timer_id !== pending.timerId || message.running !== false || message.cancelled !== true)))) return fail('invalid_timer_receipt');
         const accepted = pending.type === 'timer_status' || message.accepted;
+        if (accepted && (!(message.timer_id === '' || validId(message.timer_id)) ||
+            !Number.isInteger(message.seconds) || message.seconds < 0 || message.seconds > 86400 ||
+            !Number.isInteger(message.remaining_seconds) || message.remaining_seconds < 0 || message.remaining_seconds > message.seconds ||
+            typeof message.running !== 'boolean' || typeof message.completed !== 'boolean' ||
+            (message.cancelled !== undefined && typeof message.cancelled !== 'boolean') ||
+            (message.running && (message.completed || message.cancelled || !message.timer_id)) ||
+            (message.completed && message.cancelled) ||
+            (pending.type === 'start_timer' && message.timer_id !== message.request_id))) return fail('invalid_timer_receipt');
         timerReply(message.request_id, {
           ok: accepted, code: accepted ? 'device_confirmed' : message.code || 'device_rejected',
           request_id: message.request_id, timer_id: message.timer_id,
           seconds: message.seconds, remaining_seconds: message.remaining_seconds,
-          running: message.running, completed: message.completed, duplicate: message.duplicate || false,
+          running: message.running, completed: message.completed, cancelled: message.cancelled || false, duplicate: message.duplicate || false,
         });
         if (accepted && pending.type === 'start_timer') log(`Timer accepted by ESP32: ${message.request_id}, ${message.seconds} seconds`);
         return;

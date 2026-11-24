@@ -9,4 +9,4 @@ npm run timer -- start 25m
 npm run timer -- status
 ```
 
-Success requires a matching ESP32 receipt. An accepted countdown and its local chimes continue through Wi-Fi/backend outages, but not device reset or power loss. Spoken timer commands and typed cancellation are not implemented.
+Success requires a matching ESP32 receipt. An accepted countdown and its local chimes continue through Wi-Fi/backend outages, but not device reset or power loss. Spoken timer actions and targeted cancellation are implemented; see [the guide](../docs/wiki/Spoken-Timers.md).

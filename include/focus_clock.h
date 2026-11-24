@@ -6,6 +6,7 @@
 class FocusClock {
  public:
   enum class Result { Accepted, Duplicate, Busy, Invalid };
+  enum class CancelResult { Cancelled, Duplicate, NotFound, NotRunning, Elapsed };
   Result start(const char *id, uint32_t seconds, uint64_t now) {
     if (!id || !*id || std::strlen(id) > 64 || seconds < 1 || seconds > 86400 ||
         now > std::numeric_limits<uint64_t>::max() - uint64_t(seconds) * 1000) return Result::Invalid;
@@ -20,7 +21,18 @@ class FocusClock {
     deadline_ = now + uint64_t(seconds) * 1000;
     running_ = true;
     completed_ = false;
+    cancelled_ = false;
     return Result::Accepted;
+  }
+  CancelResult cancel(const char *id, uint64_t now) {
+    if (!id || !*id || std::strcmp(id, id_)) return CancelResult::NotFound;
+    if (cancelled_) return CancelResult::Duplicate;
+    if (!running_) return CancelResult::NotRunning;
+    // Expiry wins at the deadline; the polling task must still play its alarm.
+    if (now >= deadline_) return CancelResult::Elapsed;
+    running_ = false;
+    cancelled_ = true;
+    return CancelResult::Cancelled;
   }
   bool poll(uint64_t now) {
     if (!running_ || now < deadline_) return false;
@@ -33,6 +45,7 @@ class FocusClock {
   }
   bool running() const { return running_; }
   bool completed() const { return completed_; }
+  bool cancelled() const { return cancelled_; }
   uint32_t seconds() const { return seconds_; }
   const char *id() const { return id_; }
  private:
@@ -41,4 +54,5 @@ class FocusClock {
   uint32_t seconds_ = 0;
   bool running_ = false;
   bool completed_ = false;
+  bool cancelled_ = false;
 };

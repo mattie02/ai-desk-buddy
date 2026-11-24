@@ -5,6 +5,7 @@
 - [Setup and operation](Setup-and-Operation.md)
 - [Architecture](Architecture.md)
 - [Protocol](Protocol.md)
+- [Spoken timers](Spoken-Timers.md)
 - [Focus timer](Focus-Timer.md)
 - [Verification and troubleshooting](Verification-and-Troubleshooting.md)
 - [Roadmap](Roadmap.md)

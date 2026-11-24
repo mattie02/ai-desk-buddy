@@ -1,6 +1,6 @@
 # AI Desk Buddy documentation
 
-**Snapshot: November 23, 2026 — before spoken timer tools.**
+**Snapshot: November 23, 2026 — spoken timer implementation; hardware voice acceptance pending.**
 
 AI Desk Buddy is a working breadboard prototype: hold a capacitive touch pad, speak, release it, and hear an AI reply. An ESP32 drives the microphone, amplifier, speaker, OLED, and local focus countdown. A Mac handles network sessions, OpenAI credentials, voice, personality, and reply gain.
 
@@ -16,9 +16,9 @@ AI Desk Buddy is a working breadboard prototype: hold a capacitive touch pad, sp
 | OpenAI Realtime voice | Audible AI replies confirmed |
 | Buffered playback | User reported smooth playback after the stutter fix |
 | Typed local focus timer | 10-second countdown and two chimes verified with ESP32 Wi-Fi held off |
-| Automated checks | Last run: 16 tests passed; both firmware targets build |
+| Automated checks | Last run: 26 tests passed; both firmware targets build |
 
-**Not implemented:** spoken timer start/status/cancel, a typed timer cancellation command, timer persistence across reset/power loss, and an enclosure/single-cable design.
+Spoken timer tools and targeted typed cancellation are implemented; hardware voice acceptance is pending. **Not implemented:** timer persistence across reset/power loss and an enclosure/single-cable design.
 
 ## Find the right guide
 
@@ -26,6 +26,7 @@ AI Desk Buddy is a working breadboard prototype: hold a capacitive touch pad, sp
 - [Setup and operation](Setup-and-Operation.md): run a fresh checkout, then echo and Realtime.
 - [Architecture](Architecture.md): how the ESP32 and Mac divide the work.
 - [Protocol](Protocol.md): messages, PCM formats, credits, and timer receipts.
+- [Spoken timers](Spoken-Timers.md)
 - [Focus timer](Focus-Timer.md): commands, offline behavior, and limitations.
 - [Verification and troubleshooting](Verification-and-Troubleshooting.md): evidence, regressions, and practical checks.
 - [Roadmap](Roadmap.md): next changes and acceptance criteria.
@@ -46,7 +47,7 @@ npm run timer -- start 25m
 npm run timer -- status
 ```
 
-Wait for `Ready` before holding the pad for a voice turn. Spoken requests do not currently invoke timer actions; use the typed command.
+Wait for `Ready` before holding the pad for a voice turn. See [Spoken timers](Spoken-Timers.md) for voice commands and validation status.
 
 ## Project boundaries
 

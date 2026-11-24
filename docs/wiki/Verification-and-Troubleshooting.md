@@ -73,10 +73,18 @@ The first timer run exposed a corrupted receipt: a borrowed string referenced te
 | Timer CLI returns unknown | It may have started. Check OLED/status; do not blindly issue a new ID |
 | Timer CLI offline | Confirm new firmware advertises timer support and is connected; status requires Wi-Fi, countdown completion does not |
 | Timer disappeared | Check for a reset, power loss, or opening the serial port; state is currently RAM-only |
-| AI is asked to start a timer | Voice tools are not implemented; use the typed CLI |
+| Voice timer request fails | Check that updated firmware advertises cancellation support; inspect receipt/result codes and see [Spoken timers](Spoken-Timers.md) |
 
 ## Logs and observation
 
 Voice serial output shows touch edges, OLED states, worker setup, free heap, capture errors, and playback queue waits. The backend logs session/error codes, received duration, playback completion, and timer acceptance/completion. It does not log API keys, raw audio, or transcripts.
 
 Useful serial controls are listed in [Setup and operation](Setup-and-Operation.md). For an offline timer acceptance test, follow [Focus timer](Focus-Timer.md). Avoid opening a second serial monitor during a running timer: it can reset the board and invalidate the test.
+
+## Spoken timer implementation checks
+
+November 23, 2026: both firmware targets build and 26 automated tests pass after adding cancellation and spoken tools. New checks cover receipt-before-speech ordering, actual device time-left routing, targeted cancel, delayed/lost acknowledgements, invalid arguments, duplicate response completion, and expiry winning at the cancellation boundary. These are automated/mocked results; hardware voice acceptance remains pending.
+
+Physical cancellation retest: updated firmware uploaded with flash hash verification after one interrupted upload/retry. The backend received acceptance for a five-second timer, cancellation, and duplicate cancellation. Status after the original deadline remained cancelled=true, completed=false, running=false. Serial showed cancellation and no completion event for that timer. Realtime accepted the updated session configuration. Audible spoken-tool acceptance remains pending.
+
+Offline regression with the new firmware: an accepted 10-second timer continued with ESP32 Wi-Fi held off at five seconds remaining. Serial showed countdown to expiry and `TIMER completion tone played locally`. After enabling reconnection, a device-confirmed status receipt for the same timer reported completed=true, running=false, remaining_seconds=0. This is serial/device evidence; it does not add a new user-confirmed listening result.

@@ -15,6 +15,7 @@ FocusSnapshot snapshot() {
   result.remaining = clockState.remaining(nowMs());
   result.running = clockState.running();
   result.completed = clockState.completed();
+  result.cancelled = clockState.cancelled();
   return result;
 }
 void timerTask(void *) {
@@ -54,6 +55,14 @@ FocusSnapshot focusTimerSnapshot() {
   xSemaphoreTake(gate, portMAX_DELAY);
   const auto result = snapshot();
   xSemaphoreGive(gate);
+  return result;
+}
+FocusClock::CancelResult focusTimerCancel(const char *timerId) {
+  if (!gate) return FocusClock::CancelResult::NotFound;
+  xSemaphoreTake(gate, portMAX_DELAY);
+  const auto result = clockState.cancel(timerId, nowMs());
+  xSemaphoreGive(gate);
+  if (result == FocusClock::CancelResult::Cancelled) Serial.printf("TIMER cancelled locally: %s\n", timerId);
   return result;
 }
 bool focusTimerCompletion(FocusSnapshot &result) {

@@ -20,11 +20,12 @@ The backend allows one authenticated device. Binary/text payloads from clients a
   "token": "GENERATED_DEVICE_TOKEN",
   "sample_rate": 24000,
   "playback_window": 16,
-  "timer_support": 1
+  "timer_support": 1,
+  "timer_cancel_support": 1
 }
 ```
 
-The backend validates the token and sample rate. It accepts an integer playback window of 1–16; missing means legacy window 1. `timer_support:1` makes the device eligible for timer requests. Ready is sent only after echo is available or Realtime acknowledges configuration.
+The backend validates the token and sample rate. It accepts an integer playback window of 1–16; missing means legacy window 1. `timer_support:1` makes the device eligible for timer requests. `timer_cancel_support:1` additionally enables targeted cancellation and spoken tools. Ready is sent only after echo is available or Realtime acknowledges configuration.
 
 ```json
 {"type":"ready","sample_rate":24000,"mode":"realtime"}
@@ -102,4 +103,8 @@ The device can emit `timer_finished` while connected. Offline completion does no
 
 Heartbeat, acknowledgement, setup, input, and reply deadlines bound the session. Malformed messages and failed/stalled audio abort the turn. Device reconnects create a new Realtime conversation. Opening a serial monitor can reset the ESP32, which also clears its RAM timer.
 
-No Realtime timer tools are registered yet. Typed timer requests do not create an OpenAI response, and speech cannot currently start/cancel/query a timer.
+Spoken tools use a silent planning response, validated arguments, the same device receipt path, and a final audible response with tools disabled. See [Spoken timers](Spoken-Timers.md). Typed timer requests do not create an OpenAI response.
+
+## Cancellation messages
+
+A targeted request is `{"type":"cancel_timer","request_id":"CANCEL_REQUEST_ID","timer_id":"ORIGINAL_TIMER_ID"}` (plus the token for `/control`). The device replies with `timer_cancel_result`, matching request ID, `accepted`, `duplicate`, `code`, and the usual timer snapshot including `cancelled`. Accepted cancellation must match the target ID and report running=false, cancelled=true. Rejected codes include `timer_changed`, `timer_not_running`, and `timer_elapsed`. Older firmware without the capability receives no cancellation command.

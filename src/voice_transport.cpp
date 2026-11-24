@@ -37,6 +37,7 @@ void timerFields(JsonDocument &message, const FocusSnapshot &timer) {
   message["remaining_seconds"] = timer.remaining;
   message["running"] = timer.running;
   message["completed"] = timer.completed;
+  message["cancelled"] = timer.cancelled;
 }
 
 void timerControl(JsonDocument &request) {
@@ -52,6 +53,17 @@ void timerControl(JsonDocument &request) {
     reply["duplicate"] = result == FocusClock::Result::Duplicate;
     reply["code"] = result == FocusClock::Result::Busy ? "timer_already_running" :
                      result == FocusClock::Result::Invalid ? "invalid_timer_command" : "accepted";
+    if (changed) changed();
+  } else if (!strcmp(type, "cancel_timer")) {
+    const char *timerId = request["timer_id"] | "";
+    const auto result = focusTimerCancel(timerId);
+    using C = FocusClock::CancelResult;
+    reply["type"] = "timer_cancel_result";
+    reply["accepted"] = result == C::Cancelled || result == C::Duplicate;
+    reply["duplicate"] = result == C::Duplicate;
+    reply["code"] = result == C::NotFound ? "timer_changed" :
+                     result == C::NotRunning ? "timer_not_running" :
+                     result == C::Elapsed ? "timer_elapsed" : "cancelled";
     if (changed) changed();
   } else reply["type"] = "timer_status";
   const FocusSnapshot timer = focusTimerSnapshot();
@@ -132,6 +144,7 @@ void onSocket(WStype_t type, uint8_t *payload, size_t length) {
     hello["sample_rate"] = 24000;
     hello["playback_window"] = kPlaybackWindow;
     hello["timer_support"] = 1;
+    hello["timer_cancel_support"] = 1;
     String text;
     serializeJson(hello, text);
     socket.sendTXT(text);
@@ -154,7 +167,7 @@ void onSocket(WStype_t type, uint8_t *payload, size_t length) {
     JsonDocument message;
     if (deserializeJson(message, payload, length)) { abortConnection("invalid backend JSON"); return; }
     const char *kind = message["type"] | "";
-    if (!strcmp(kind, "start_timer") || !strcmp(kind, "timer_status")) {
+    if (!strcmp(kind, "start_timer") || !strcmp(kind, "timer_status") || !strcmp(kind, "cancel_timer")) {
       timerControl(message);
       return;
     }

@@ -325,3 +325,131 @@ test('upstream failure closes the turn and releases the single-device slot', { t
   const next = await connect();
   await next.inbox.type('ready');
 });
+
+class ToolRealtime extends MockRealtime {
+  constructor(call) { super(); this.call = call; }
+  send(text) {
+    const event = JSON.parse(text);
+    this.events.push(event);
+    this.emit('sent');
+    queueMicrotask(() => {
+      if (event.type === 'session.update') this.emitEvent({ type: 'session.updated' });
+      if (event.type === 'input_audio_buffer.commit') this.emitEvent({ type: 'input_audio_buffer.committed' });
+      if (event.type === 'response.create' && event.response?.output_modalities[0] === 'text') {
+        // An unexpected planning audio delta must never reach the speaker.
+        this.emitEvent({ type: 'response.output_audio.delta', delta: Buffer.alloc(100).toString('base64') });
+        this.emitEvent({ type: 'response.done', response: { id: 'plan-1', status: 'completed', output: this.call ? [this.call] : [] } });
+      } else if (event.type === 'response.create') {
+        this.emitEvent({ type: 'response.output_audio.delta', delta: Buffer.alloc(2048, 1).toString('base64') });
+        // Repeated planning completion must not dispatch again or finish playback.
+        this.emitEvent({ type: 'response.done', response: { id: 'plan-1', status: 'completed', output: this.call ? [this.call] : [] } });
+        this.emitEvent({ type: 'response.done', response: { id: 'answer-1', status: 'completed', output: [] } });
+      }
+    });
+  }
+  async waitFor(predicate) {
+    for (;;) {
+      const event = this.events.find(predicate);
+      if (event) return event;
+      await once(this, 'sent');
+    }
+  }
+}
+async function toolFixture(t, name, args = {}) {
+  let upstream;
+  const call = name ? { type: 'function_call', call_id: 'call_test', name, arguments: JSON.stringify(args) } : null;
+  const { connect } = await fixture(t, { mode: 'realtime', apiKey: 'dummy', instructions: 'test personality',
+    makeRealtime: () => (upstream = new ToolRealtime(call)) });
+  const device = await connect(TOKEN, { timer_support: 1, timer_cancel_support: 1, playback_window: 16 });
+  await device.inbox.type('ready');
+  device.send({ type: 'begin', turn: 1 });
+  device.socket.send(Buffer.alloc(2400));
+  device.socket.send(Buffer.alloc(2400));
+  device.send({ type: 'end', turn: 1 });
+  return { device, upstream };
+}
+const toolOutput = event => event.type === 'conversation.item.create' && event.item.type === 'function_call_output';
+
+test('spoken start cannot speak or confirm until the matching device receipt; duplicate completion executes once', { timeout: 5000 }, async t => {
+  const { device, upstream } = await toolFixture(t, 'start_focus_timer', { seconds: 25 });
+  const command = await device.inbox.type('start_timer');
+  assert.equal(command.seconds, 25);
+  assert.equal(upstream.events[0].session.tools.length, 3);
+  await new Promise(resolve => setTimeout(resolve, 40));
+  assert.equal(upstream.events.filter(event => event.type === 'response.create').length, 1);
+  assert.ok(!upstream.events.some(toolOutput));
+  assert.ok(!device.inbox.queue.some(Buffer.isBuffer));
+  device.send({ type: 'timer_result', request_id: command.request_id, timer_id: command.request_id,
+    accepted: true, seconds: 25, remaining_seconds: 25, running: true, completed: false, cancelled: false });
+  const result = JSON.parse((await upstream.waitFor(toolOutput)).item.output);
+  assert.equal(result.code, 'device_confirmed');
+  assert.equal((await finishPlayback(device, 1)).length, 2048);
+  assert.equal(upstream.events.filter(toolOutput).length, 1);
+  assert.equal(upstream.events.filter(event => event.type === 'response.create').length, 2);
+  assert.ok(!device.inbox.queue.some(item => item.type === 'start_timer'));
+});
+
+test('spoken status uses the ESP32 remaining time', { timeout: 5000 }, async t => {
+  const { device, upstream } = await toolFixture(t, 'get_focus_timer');
+  const command = await device.inbox.type('timer_status');
+  device.send({ type: 'timer_status', request_id: command.request_id, timer_id: 'active-timer',
+    seconds: 1500, remaining_seconds: 123, running: true, completed: false });
+  const result = JSON.parse((await upstream.waitFor(toolOutput)).item.output);
+  assert.equal(result.remaining_seconds, 123);
+  assert.equal((await finishPlayback(device, 1)).length, 2048);
+});
+
+test('spoken cancel targets the timer read from the device and waits for cancellation acceptance', { timeout: 5000 }, async t => {
+  const { device, upstream } = await toolFixture(t, 'cancel_focus_timer');
+  const status = await device.inbox.type('timer_status');
+  device.send({ type: 'timer_status', request_id: status.request_id, timer_id: 'cancel-target',
+    seconds: 30, remaining_seconds: 12, running: true, completed: false });
+  const cancel = await device.inbox.type('cancel_timer');
+  assert.equal(cancel.timer_id, 'cancel-target');
+  assert.ok(!upstream.events.some(toolOutput));
+  device.send({ type: 'timer_cancel_result', request_id: cancel.request_id, timer_id: 'cancel-target',
+    accepted: true, seconds: 30, remaining_seconds: 0, running: false, completed: false, cancelled: true });
+  assert.equal(JSON.parse((await upstream.waitFor(toolOutput)).item.output).cancelled, true);
+  assert.equal((await finishPlayback(device, 1)).length, 2048);
+});
+
+test('busy device rejection is passed to speech generation without claiming success', { timeout: 5000 }, async t => {
+  const { device, upstream } = await toolFixture(t, 'start_focus_timer', { seconds: 25 });
+  const command = await device.inbox.type('start_timer');
+  device.send({ type: 'timer_result', request_id: command.request_id, accepted: false, code: 'timer_already_running' });
+  const result = JSON.parse((await upstream.waitFor(toolOutput)).item.output);
+  assert.equal(result.ok, false);
+  assert.equal(result.code, 'timer_already_running');
+  await finishPlayback(device, 1);
+});
+
+test('lost spoken start receipt returns unknown after the deadline, without retrying the action', { timeout: 8000 }, async t => {
+  const { device, upstream } = await toolFixture(t, 'start_focus_timer', { seconds: 25 });
+  await device.inbox.type('start_timer');
+  const result = JSON.parse((await upstream.waitFor(toolOutput)).item.output);
+  assert.equal(result.ok, false);
+  assert.equal(result.outcome, 'unknown');
+  assert.equal(result.code, 'device_ack_timeout');
+  await finishPlayback(device, 1);
+  assert.ok(!device.inbox.queue.some(item => item.type === 'start_timer'));
+});
+
+test('ordinary conversation passes the silent plan and still uses buffered audio completion', { timeout: 5000 }, async t => {
+  const { device, upstream } = await toolFixture(t, null);
+  assert.equal((await finishPlayback(device, 1)).length, 2048);
+  assert.ok(!upstream.events.some(toolOutput));
+});
+
+test('malformed accepted cancellation cannot confirm success', { timeout: 5000 }, async t => {
+  const { connect, control } = await fixture(t);
+  const device = await connect(TOKEN, { timer_support: 1, timer_cancel_support: 1 });
+  await device.inbox.type('ready');
+  const caller = await control({ type: 'cancel_timer', request_id: 'cancel-request', timer_id: 'target' });
+  await device.inbox.type('cancel_timer');
+  device.send({ type: 'timer_cancel_result', request_id: 'cancel-request', accepted: true, timer_id: 'different',
+    seconds: 30, remaining_seconds: 0, running: false, completed: false, cancelled: true });
+  assert.equal((await device.inbox.type('error')).code, 'invalid_timer_receipt');
+  const result = await caller.inbox.next(item => item.request_id === 'cancel-request');
+  assert.equal(result.ok, false);
+  assert.equal(result.outcome, 'unknown');
+});

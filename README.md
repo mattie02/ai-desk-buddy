@@ -2,7 +2,7 @@
 
 A breadboard voice companion built with an original ESP32, an I²S microphone and speaker amplifier, a capacitive touch pad, and an OLED. Hold the pad to speak, release it, and hear an OpenAI Realtime reply through the speaker.
 
-The first device action is a focus timer controlled from the Mac terminal. Its countdown, display, and completion chimes run on the ESP32 and finish even if Wi-Fi disconnects. **Voice timer commands are not connected yet.**
+The first device action is a focus timer controlled from the Mac terminal. Its countdown, display, and completion chimes run on the ESP32 and finish even if Wi-Fi disconnects. Spoken start/status/cancel tools are implemented; see the validation status in the [spoken timer guide](docs/wiki/Spoken-Timers.md).
 
 ## Documentation
 
@@ -14,6 +14,7 @@ Read the [GitHub wiki](https://github.com/mattie02/ai-desk-buddy/wiki) or the ve
 | [Setup and operation](docs/wiki/Setup-and-Operation.md) | Fresh checkout, local configuration, build, upload, echo, AI replies |
 | [Architecture](docs/wiki/Architecture.md) | ESP32 tasks, Mac backend, audio buffers, timer ownership |
 | [Protocol](docs/wiki/Protocol.md) | Audio flow, playback credits, timer requests and receipts |
+| [Spoken timers](docs/wiki/Spoken-Timers.md) | Voice commands and receipt-before-speech behavior |
 | [Focus timer](docs/wiki/Focus-Timer.md) | Commands, offline test, limits and failure semantics |
 | [Verification and troubleshooting](docs/wiki/Verification-and-Troubleshooting.md) | Proven bench results, automated checks, fixes and remaining limits |
 | [Roadmap](docs/wiki/Roadmap.md) | Next work, including spoken timer tools |
@@ -27,8 +28,8 @@ As of November 23, 2026:
 - Local echo and live AI replies are bench verified.
 - Dedicated capture/playback tasks and buffered playback resolved the reported disconnect and stutter issues in physical retests.
 - A typed 10-second timer completed with ESP32 Wi-Fi held off; the user confirmed the countdown and both chimes. Its completed state remained after reconnecting.
-- Both PlatformIO targets build, and the last verification run passed all **16 tests**.
-- Spoken timer start/status/cancel tools, a typed cancel command, and persistence across power loss are not implemented.
+- Both PlatformIO targets build, and the last verification run passed all **26 tests**.
+- Spoken timer tools and targeted typed cancellation are implemented; voice hardware acceptance is pending. Persistence across power loss is not implemented.
 
 ## Quick start
 

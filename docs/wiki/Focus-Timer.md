@@ -2,7 +2,7 @@
 
 [Documentation home](Home.md) · [Protocol](Protocol.md)
 
-The Mac sends a typed command; the ESP32 owns the countdown, display, and completion chime. A successful CLI response is emitted only after the ESP32 accepts the command. Spoken timer tools are not connected yet.
+The Mac sends a typed command; the ESP32 owns the countdown, display, and completion chime. A successful CLI response is emitted only after the ESP32 accepts the command. Spoken start/status/cancel tools are implemented; see [Spoken timers](Spoken-Timers.md) for behavior and validation status.
 
 With the backend running, use another terminal:
 
@@ -56,4 +56,8 @@ Then send `W`, wait for Ready, and query `npm run timer -- status`. The expected
 
 The control CLI connects to the loopback-only `/control` WebSocket endpoint using the local device token. The server forwards requests to the authenticated timer-capable ESP32, correlates receipts by request ID, and enforces a five-second receipt deadline. It does not infer acceptance from sending the command or from an AI response. The OpenAI API key is never sent to the ESP32 or control client.
 
-`npm test` runs sixteen checks, including the firmware clock compiled natively: deadlines, duplicate IDs, busy rejection, 64-bit clock boundaries, one-shot completion, device rejection, invalid input, and lost acknowledgements. Both PlatformIO targets build. Hardware offline completion acceptance **passed** on 2026-11-23. The ESP32 accepted a 10-second command and the Mac received `device_confirmed`. About two seconds later ESP32 Wi-Fi was disconnected and held off. Serial showed the countdown continue from 8 to 0, local expiry, and a completed two-chime sequence. After reconnecting, a typed status query returned completed=true, running=false, and zero remaining seconds for the same timer ID. The user confirmed the second run’s countdown, Time up display, and both chimes. The initial run exposed a corrupted receipt caused by borrowed temporary string storage; receipt strings now have owned storage, and the acknowledged offline retest passed.
+`npm test` runs 26 checks, including the firmware clock compiled natively: deadlines, duplicate IDs, busy rejection, 64-bit clock boundaries, one-shot completion, device rejection, invalid input, and lost acknowledgements. Both PlatformIO targets build. Hardware offline completion acceptance **passed** on 2026-11-23. The ESP32 accepted a 10-second command and the Mac received `device_confirmed`. About two seconds later ESP32 Wi-Fi was disconnected and held off. Serial showed the countdown continue from 8 to 0, local expiry, and a completed two-chime sequence. After reconnecting, a typed status query returned completed=true, running=false, and zero remaining seconds for the same timer ID. The user confirmed the second run’s countdown, Time up display, and both chimes. The initial run exposed a corrupted receipt caused by borrowed temporary string storage; receipt strings now have owned storage, and the acknowledged offline retest passed.
+
+## Targeted cancellation
+
+Run `npm run timer -- status` and then `npm run timer -- cancel TIMER-ID` with the returned ID. Success requires a matching cancellation receipt. Cancellation before expiry suppresses that timer’s completion; at the deadline expiry wins. A stale timer ID cannot cancel a newer countdown.

@@ -9,20 +9,13 @@
 3. Mac backend, held audio streaming, local echo, Realtime replies, backend-only API key/voice/personality, capture/playback buffering, listening checks.
 4. Typed start/status timer commands, device acknowledgement before success, local OLED countdown/chimes, and Wi-Fi-disconnected completion test.
 
-## Next: spoken timer tools
+## Current milestone: spoken timer tools
 
-Planned phrases include “Start a 25-minute focus timer,” “How much time is left?”, and “Cancel the timer.” None currently invokes a device action.
+Spoken start/status/cancel and targeted typed cancellation are implemented. See [Spoken timers](Spoken-Timers.md) for behavior. Both firmware builds and 26 automated tests pass. Hardware acceptance of the new voice commands is pending.
 
-Implementation should:
+Acceptance still requires spoken start/status/cancel, truthful busy/uncertain outcomes, countdown survival after Wi-Fi loss, and a smooth-audio regression check. The previously verified offline countdown remains a separate earlier bench result.
 
-1. Define validated Realtime function schemas in the backend and verify the then-current API documentation.
-2. Route a spoken start through the same correlated ESP32 command/receipt path as the typed CLI.
-3. Read remaining time from ESP32 state, not a backend-estimated deadline.
-4. Add a real firmware/backend cancellation command before exposing a spoken cancel tool.
-5. Speak success only after device acceptance. Preserve explicit busy, offline, rejected, and uncertain outcomes.
-6. Retain backend ownership of voice/personality and ESP32 ownership of accepted countdowns/chimes.
-
-Acceptance should include spoken start/status/cancel, no false success after lost receipts, duplicate-command behavior, countdown survival after Wi-Fi loss, and regression checks for smooth audio.
+After this acceptance, the next reliability work is longer outages and repeated voice turns, followed by usage/cost reporting from actual API responses.
 
 ## Later work
 

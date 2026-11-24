@@ -7,8 +7,10 @@ struct FocusSnapshot {
   uint32_t remaining = 0;
   bool running = false;
   bool completed = false;
+  bool cancelled = false;
 };
 bool focusTimerInit();
 FocusClock::Result focusTimerStart(const char *id, uint32_t seconds);
+FocusClock::CancelResult focusTimerCancel(const char *timerId);
 FocusSnapshot focusTimerSnapshot();
 bool focusTimerCompletion(FocusSnapshot &result);

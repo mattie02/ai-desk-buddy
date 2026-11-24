@@ -26,6 +26,6 @@ npm run timer -- start 25m
 npm run timer -- status
 ```
 
-See [timer behavior and offline testing](../docs/wiki/Focus-Timer.md). Spoken timer actions and typed cancellation are not implemented yet.
+See [timer behavior and offline testing](../docs/wiki/Focus-Timer.md). See [spoken timers](../docs/wiki/Spoken-Timers.md) for voice actions and targeted cancellation.
 
 Run `npm test` for the localhost protocol tests and native firmware clock checks. These do not call OpenAI. The [verification record](../docs/wiki/Verification-and-Troubleshooting.md) distinguishes automated checks from actual hardware acceptance.

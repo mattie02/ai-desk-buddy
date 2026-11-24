@@ -70,6 +70,7 @@ void renderStatus() {
   oled.setCursor(0, 0);
   if (timer.running) { oled.print("FOCUS "); oled.print(countdown); }
   else if (timer.completed) oled.print("FOCUS COMPLETE");
+  else if (timer.cancelled) oled.print("FOCUS CANCELLED");
   else oled.print(kVoiceBuild ? "DESK BUDDY / VOICE" : "DESK BUDDY / LOCAL");
   oled.drawFastHLine(0, 15, 128, SSD1306_WHITE);
   oled.setTextSize(2);
@@ -415,9 +416,11 @@ void loop() {
   const FocusSnapshot timer = focusTimerSnapshot();
   static uint32_t lastRemaining = UINT32_MAX;
   static bool lastCompleted = false;
-  if (timer.remaining != lastRemaining || timer.completed != lastCompleted) {
+  static bool lastCancelled = false;
+  if (timer.remaining != lastRemaining || timer.completed != lastCompleted || timer.cancelled != lastCancelled) {
     lastRemaining = timer.remaining;
     lastCompleted = timer.completed;
+    lastCancelled = timer.cancelled;
     oledDirty = true;
   }
   voiceLoop();
