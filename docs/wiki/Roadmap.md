@@ -17,7 +17,7 @@ Bench acceptance passed for spoken start/status/cancel and smooth audio. The upd
 
 ## Next: reliability checks
 
-A later repeated-turn test exposed microphone queue overflows, playback gaps, and an overlong-reply disconnect. Capture batch draining, larger/refilling playback buffers, packet coalescing, and graceful reply limits are implemented; their hardware retest is pending. See [verification](Verification-and-Troubleshooting.md).
+A later repeated-turn test exposed microphone queue overflows, playback gaps, and an overlong-reply disconnect. Capture batch draining, larger/refilling playback buffers, packet coalescing, and graceful reply limits are implemented; the user confirmed three successful holds and smooth playback in the hardware retest, with zero logged playback gaps. Longer-hold and network-stress checks remain. See [verification](Verification-and-Troubleshooting.md).
 
 Run longer network outages and repeated voice turns, including busy starts and lost-receipt recovery. Record actual results and confirm there are no false success claims, timer restarts, or audio regressions. Then add usage/cost reporting from actual API responses.
 
