@@ -396,6 +396,7 @@ test('spoken status uses the ESP32 remaining time', { timeout: 5000 }, async t =
     seconds: 1500, remaining_seconds: 123, running: true, completed: false });
   const result = JSON.parse((await upstream.waitFor(toolOutput)).item.output);
   assert.equal(result.remaining_seconds, 123);
+  assert.equal(result.remaining_spoken, '2 minutes and 3 seconds');
   assert.equal((await finishPlayback(device, 1)).length, 2048);
 });
 

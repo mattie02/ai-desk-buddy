@@ -1,5 +1,16 @@
 import { randomUUID } from 'node:crypto';
 
+function spokenDuration(totalSeconds) {
+  if (!Number.isInteger(totalSeconds) || totalSeconds < 0) return undefined;
+  const parts = [
+    [Math.floor(totalSeconds / 3600), 'hour'],
+    [Math.floor(totalSeconds / 60) % 60, 'minute'],
+    [totalSeconds % 60, 'second'],
+  ].filter(([value]) => value > 0).map(([value, unit]) => `${value} ${unit}${value === 1 ? '' : 's'}`);
+  if (!parts.length) return 'no time';
+  return parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}`;
+}
+
 export const timerTools = [
   {
     type: 'function', name: 'start_focus_timer',
@@ -8,7 +19,7 @@ export const timerTools = [
   },
   {
     type: 'function', name: 'get_focus_timer',
-    description: 'Read current focus timer state and remaining seconds from the ESP32. Always use this for time-left questions.',
+    description: 'Read current focus timer state from the ESP32. Always use this for time-left questions. Speak remaining_spoken, which uses hours, minutes and seconds with zero units omitted.',
     parameters: { type: 'object', properties: {}, required: [], additionalProperties: false },
   },
   {
@@ -21,7 +32,12 @@ export const timerTools = [
 export const planningInstructions = 'Select at most one focus timer tool for the latest user request. Do not execute an action twice or retry an uncertain action. If no tool is needed, or the duration is missing or ambiguous, output only NO_TOOL. This is a silent planning step; do not answer the user or claim success yet.';
 
 // All actions use the same request/receipt path as the terminal client.
-export async function executeTimerTool(name, argumentsText, request) {
+export async function executeTimerTool(name, argumentsText, dispatch) {
+  const request = async command => {
+    const result = await dispatch(command);
+    if (!result.ok) return result;
+    return { ...result, remaining_spoken: spokenDuration(result.remaining_seconds), duration_spoken: spokenDuration(result.seconds) };
+  };
   let args;
   try { args = JSON.parse(argumentsText); } catch { return { ok: false, code: 'invalid_tool_arguments', outcome: 'not_sent' }; }
   if (!args || typeof args !== 'object' || Array.isArray(args) ||

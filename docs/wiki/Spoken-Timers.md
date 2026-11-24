@@ -10,6 +10,10 @@ With the updated voice firmware and Realtime backend, wait for Ready, hold the p
 
 Use one action per turn. Give an explicit duration from 1 second through 24 hours. A running timer is never replaced by a new start. Cancellation stops a countdown; it does not silence a completion alarm that has already expired.
 
+## Spoken durations
+
+Time-left replies use hours, minutes, and seconds, skipping zero units. For example, 104 seconds becomes “1 minute and 44 seconds”; 3605 seconds becomes “1 hour and 5 seconds”; exactly 60 seconds becomes “1 minute”. The backend computes `remaining_spoken` and `duration_spoken` from the device receipt; personality instructions use those phrases. A completed or cancelled timer is described by state instead of as an active countdown.
+
 ## Receipt before speech
 
 The backend first requests a silent, text-only planning response with three validated function schemas: `start_focus_timer`, `get_focus_timer`, and `cancel_focus_timer`. It waits for the complete function call in `response.done`; partial argument deltas never execute commands.
@@ -35,6 +39,6 @@ Replace `TIMER-ID` with the ID returned by status. This explicit target prevents
 
 ## Validation
 
-The implementation passes 26 automated checks, including delayed/lost receipts, spoken start/status/cancel routing, malformed arguments, cancellation targeting, expiry boundaries, duplicate handling, and audio completion regressions. Both firmware targets build. On November 23, 2026, the user confirmed that spoken start, time-left status, and cancellation all worked and audio was smooth. This physical listening check is separate from the automated mocks.
+The implementation passes 27 automated checks, including delayed/lost receipts, spoken start/status/cancel routing, malformed arguments, cancellation targeting, expiry boundaries, duplicate handling, and audio completion regressions. Both firmware targets build. On November 23, 2026, the user confirmed that spoken start, time-left status, and cancellation all worked and audio was smooth. This physical listening check is separate from the automated mocks.
 
 Implementation follows the [OpenAI Realtime function-calling documentation](https://developers.openai.com/api/docs/guides/realtime-conversations#function-calling), checked November 23, 2026.

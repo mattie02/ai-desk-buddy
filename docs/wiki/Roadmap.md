@@ -11,7 +11,7 @@
 
 ## Completed: spoken timer tools
 
-Spoken start/status/cancel and targeted typed cancellation are implemented. See [Spoken timers](Spoken-Timers.md) for behavior. Both firmware builds and 26 automated tests pass. The user confirmed that spoken start, time-left status, and cancellation all worked, with smooth audio.
+Spoken start/status/cancel and targeted typed cancellation are implemented. See [Spoken timers](Spoken-Timers.md) for behavior. Both firmware builds and 27 automated tests pass. The user confirmed that spoken start, time-left status, and cancellation all worked, with smooth audio.
 
 Bench acceptance passed for spoken start/status/cancel and smooth audio. The updated firmware also passed physical targeted cancellation and Wi-Fi-disconnected completion checks. Busy and lost-receipt behavior are covered by automated tests; those fault outcomes have not been separately confirmed by listening on hardware.
 
