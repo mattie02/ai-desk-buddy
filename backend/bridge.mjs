@@ -128,6 +128,9 @@ export function createBuddyServer({
     let inFlight = 0;
     let playbackWindow = 1; // Backward compatible with the original device firmware.
     let replyDone = false;
+    let replyRemainder = Buffer.alloc(0);
+    let replyLimited = false;
+    const limitCancelEvents = new Set();
     let toolsEnabled = false;
     const handledResponses = new Set();
     let finishSent = false;
@@ -192,17 +195,43 @@ export function createBuddyServer({
         ackTimer = setTimeout(() => fail(inFlight ? 'playback_ack_timeout' : 'playback_done_timeout'), 5000);
       }
     }
-    function enqueue(pcm, levelGain = 1) {
+    function enqueue(pcm, levelGain = 1, responseId) {
       if (pcm.length % 2) return fail('invalid_reply_pcm');
+      if (replyLimited) return;
+      if (replyBytes + pcm.length > MAX_REPLY_BYTES) {
+        pcm = pcm.subarray(0, MAX_REPLY_BYTES - replyBytes);
+        replyLimited = true;
+        send({ type: 'notice', code: 'reply_audio_limit' });
+        // Keep the accepted audio and finish normally after cancellation, rather
+        // than tearing down the device connection for an overlong model answer.
+        const eventId = `reply_limit_${turn}`;
+        if (limitCancelEvents.size >= 16) limitCancelEvents.delete(limitCancelEvents.values().next().value);
+        limitCancelEvents.add(eventId);
+        api({ type: 'response.cancel', event_id: eventId, ...(typeof responseId === 'string' ? { response_id: responseId } : {}) });
+      }
+      const first = replyBytes === 0;
       replyBytes += pcm.length;
-      if (replyBytes > MAX_REPLY_BYTES || queuedBytes + pcm.length > MAX_REPLY_BYTES) return fail('reply_too_long');
-      if (replyBytes === pcm.length && pcm.length) send({ type: 'status', state: 'Speaking', turn });
+      if (first && pcm.length) send({ type: 'status', state: 'Speaking', turn });
       const quiet = attenuate(pcm, gain * levelGain);
-      for (let i = 0; i < quiet.length; i += PACKET_BYTES) {
-        const packet = quiet.subarray(i, i + PACKET_BYTES);
+      const combined = replyRemainder.length ? Buffer.concat([replyRemainder, quiet]) : quiet;
+      const fullBytes = combined.length - combined.length % PACKET_BYTES;
+      for (let i = 0; i < fullBytes; i += PACKET_BYTES) {
+        const packet = combined.subarray(i, i + PACKET_BYTES);
         queue.push(packet);
         queuedBytes += packet.length;
       }
+      // Provider delta boundaries must not waste a whole playback credit on a
+      // tiny fragment. Only end-of-audio emits a short final packet.
+      replyRemainder = Buffer.from(combined.subarray(fullBytes));
+      pump();
+    }
+    function finishReply() {
+      if (replyRemainder.length) {
+        queue.push(replyRemainder);
+        queuedBytes += replyRemainder.length;
+        replyRemainder = Buffer.alloc(0);
+      }
+      replyDone = true;
       pump();
     }
     async function completePlan(output) {
@@ -250,12 +279,13 @@ export function createBuddyServer({
           }
           break;
         case 'response.output_audio.delta':
-          if (phase === 'responding') enqueue(Buffer.from(event.delta, 'base64'));
+          if (phase === 'responding') enqueue(Buffer.from(event.delta, 'base64'), 1, event.response_id);
           break;
         case 'response.done':
           if (!['planning', 'responding'].includes(phase)) break;
           if (event.response?.id && handledResponses.has(event.response.id)) break;
-          if (event.response?.status !== 'completed') return fail('response_not_completed');
+          if (event.response?.status !== 'completed' &&
+              !(phase === 'responding' && replyLimited && event.response?.status === 'cancelled')) return fail('response_not_completed');
           if (event.response.id) {
             if (handledResponses.size >= 128) handledResponses.delete(handledResponses.values().next().value);
             handledResponses.add(event.response.id);
@@ -266,10 +296,12 @@ export function createBuddyServer({
             break;
           }
           if (event.response.output?.some(item => item.type === 'function_call')) return fail('unexpected_final_tool');
-          replyDone = true;
-          pump();
+          finishReply();
           break;
         case 'error':
+          // Generation may have completed just before our duration-limit cancel.
+          // Only ignore errors correlated to that best-effort cancel event.
+          if (limitCancelEvents.delete(event.error?.event_id)) break;
           // Log codes only: don't retain user audio, transcripts, API payloads, or secrets.
           fail(`realtime_${String(event.error?.code || 'error').replace(/[^a-zA-Z0-9_]/g, '').slice(0, 60)}`);
           break;
@@ -293,7 +325,7 @@ export function createBuddyServer({
         if (message.type !== 'hello' || message.sample_rate !== RATE || supplied.length !== expected.length ||
             !timingSafeEqual(supplied, expected)) return fail('invalid_hello');
         const requestedWindow = message.playback_window ?? 1;
-        if (!Number.isInteger(requestedWindow) || requestedWindow < 1 || requestedWindow > 16) return fail('invalid_playback_window');
+        if (!Number.isInteger(requestedWindow) || requestedWindow < 1 || requestedWindow > 32) return fail('invalid_playback_window');
         playbackWindow = requestedWindow;
         if (active) return fail('device_already_connected');
         active = device;
@@ -350,6 +382,8 @@ export function createBuddyServer({
         phase = 'recording';
         bytes = 0;
         replyBytes = 0;
+        replyRemainder = Buffer.alloc(0);
+        replyLimited = false;
         queuedBytes = 0;
         queue = [];
         replyDone = finishSent = false;
@@ -374,8 +408,7 @@ export function createBuddyServer({
           log(`Turn ${turn}: echo level correction ${correction.toFixed(2)}x, output gain ${gain}`);
           for (const chunk of echoChunks) enqueue(chunk, correction);
           echoChunks = [];
-          replyDone = true;
-          pump();
+          finishReply();
         } else {
           phase = 'committing';
           api({ type: 'input_audio_buffer.commit' });

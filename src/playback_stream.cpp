@@ -6,7 +6,7 @@
 
 namespace {
 constexpr size_t kPacketBytes = 1024;
-constexpr size_t kPrebufferBytes = 10 * kPacketBytes; // ~213 ms at 24 kHz PCM16.
+constexpr size_t kPrebufferBytes = 24 * kPacketBytes; // ~512 ms at 24 kHz PCM16.
 struct Packet { size_t bytes; uint8_t pcm[kPacketBytes]; };
 QueueHandle_t packets = nullptr;
 SemaphoreHandle_t gate = nullptr;
@@ -81,7 +81,7 @@ void playbackTask(void *) {
     }
     if (active) {
       if (!started && (queuedBytes >= kPrebufferBytes || ended ||
-                       (queuedBytes && millis() - firstPacketAt >= 500))) started = true;
+                       (queuedBytes && millis() - firstPacketAt >= 1000))) started = true;
       if (started) {
         havePacket = xQueueReceive(packets, &packet, 0) == pdTRUE;
         if (havePacket) {
@@ -101,6 +101,10 @@ void playbackTask(void *) {
           if (!gapCounted && millis() - gapAt > 43) {
             ++progress.bufferGaps;
             gapCounted = true;
+            // After a real underrun, refill before resuming instead of playing
+            // each late packet as it arrives and producing repeated small gaps.
+            started = false;
+            firstPacketAt = millis();
           }
         }
       }
@@ -125,10 +129,10 @@ void playbackTask(void *) {
 
 bool playbackInit(PlaybackSink output) {
   sink = output;
-  packets = xQueueCreate(32, sizeof(Packet));
+  packets = xQueueCreate(48, sizeof(Packet));
   gate = xSemaphoreCreateMutex();
   if (packets && gate && xTaskCreatePinnedToCore(playbackTask, "speaker-play", 4096, nullptr, 3, nullptr, 1) == pdPASS) {
-    Serial.println("Playback worker ready: ~213 ms prebuffer, 16-packet credit window");
+    Serial.println("Playback worker ready: ~512 ms prebuffer, 32-packet credit window, underrun refill");
     return true;
   }
   if (packets) vQueueDelete(packets);

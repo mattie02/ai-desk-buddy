@@ -454,3 +454,64 @@ test('malformed accepted cancellation cannot confirm success', { timeout: 5000 }
   assert.equal(result.ok, false);
   assert.equal(result.outcome, 'unknown');
 });
+
+class ChunkedRealtime extends MockRealtime {
+  constructor(chunks) { super(); this.chunks = chunks; this.cancelled = false; }
+  send(text) {
+    const event = JSON.parse(text);
+    this.events.push(event);
+    queueMicrotask(() => {
+      if (event.type === 'session.update') this.emitEvent({ type: 'session.updated' });
+      if (event.type === 'input_audio_buffer.commit') this.emitEvent({ type: 'input_audio_buffer.committed' });
+      if (event.type === 'response.create') {
+        for (const chunk of this.chunks) this.emitEvent({ type: 'response.output_audio.delta', delta: chunk.toString('base64') });
+        if (!this.cancelled) this.emitEvent({ type: 'response.done', response: { status: 'completed' } });
+      }
+      if (event.type === 'response.cancel') this.emitEvent({ type: 'response.done', response: { status: 'cancelled' } });
+    });
+    if (event.type === 'response.cancel') this.cancelled = true;
+  }
+}
+async function chunkedTurn(t, chunks) {
+  let upstream;
+  const { connect } = await fixture(t, { mode: 'realtime', apiKey: 'dummy',
+    makeRealtime: () => (upstream = new ChunkedRealtime(chunks)) });
+  const device = await connect(TOKEN, { playback_window: 32 });
+  await device.inbox.type('ready');
+  device.send({ type: 'begin', turn: 1 });
+  device.socket.send(Buffer.alloc(2400));
+  device.socket.send(Buffer.alloc(2400));
+  device.send({ type: 'end', turn: 1 });
+  return { device, upstream };
+}
+
+test('tiny provider deltas become full playback packets with only one short final tail', { timeout: 5000 }, async t => {
+  const pcm = Buffer.alloc(5760);
+  for (let i = 0; i < pcm.length; i += 2) pcm.writeInt16LE(i - 2880, i);
+  const chunks = [];
+  for (let i = 0; i < pcm.length; i += 96) chunks.push(pcm.subarray(i, i + 96));
+  const { device } = await chunkedTurn(t, chunks);
+  await device.inbox.type('finish');
+  const packets = device.inbox.queue.filter(Buffer.isBuffer);
+  assert.deepEqual(packets.map(packet => packet.length), [1024, 1024, 1024, 1024, 1024, 640]);
+  const output = Buffer.concat(packets);
+  for (let i = 0; i < pcm.length; i += 2) assert.equal(output.readInt16LE(i), Math.round(pcm.readInt16LE(i) * 0.1) || 0);
+  device.send({ type: 'ack', turn: 1, count: packets.length });
+  device.send({ type: 'playback_done', turn: 1 });
+  await device.inbox.type('ready');
+});
+
+test('32-packet window stays bounded and an overlong response ends without disconnecting the device', { timeout: 8000 }, async t => {
+  const limit = 24000 * 2 * 30;
+  const { device, upstream } = await chunkedTurn(t, [Buffer.alloc(limit + 2048, 1), Buffer.alloc(2048, 2)]);
+  await device.inbox.type('notice');
+  await new Promise(resolve => setTimeout(resolve, 40));
+  assert.equal(device.inbox.queue.filter(Buffer.isBuffer).length, 32);
+  assert.equal(upstream.events.filter(event => event.type === 'response.cancel').length, 1);
+  assert.equal((await finishPlayback(device, 1)).length, limit);
+  assert.equal(device.socket.readyState, WebSocket.OPEN);
+  const cancel = upstream.events.find(event => event.type === 'response.cancel');
+  upstream.emitEvent({ type: 'error', error: { event_id: cancel.event_id, code: 'response_cancel_not_active' } });
+  device.send({ type: 'begin', turn: 2 });
+  await device.inbox.next(item => item.type === 'status' && item.turn === 2 && item.state === 'Listening');
+});

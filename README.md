@@ -28,7 +28,7 @@ As of November 23, 2026:
 - Local echo and live AI replies are bench verified.
 - Dedicated capture/playback tasks and buffered playback resolved the reported disconnect and stutter issues in physical retests.
 - A typed 10-second timer completed with ESP32 Wi-Fi held off; the user confirmed the countdown and both chimes. Its completed state remained after reconnecting.
-- Both PlatformIO targets build, and the last verification run passed all **27 tests**.
+- Both PlatformIO targets build, and the last verification run passed all **29 tests**.
 - Spoken timer tools and targeted typed cancellation are implemented; the user confirmed spoken start/status/cancel and smooth audio. Persistence across power loss is not implemented.
 
 ## Quick start

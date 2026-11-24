@@ -45,15 +45,15 @@ The voice build's I²S bus is Philips stereo with two 32-bit slots at 24 kHz. Th
 | Capture queue | 64 PCM16 blocks of 128 samples, approximately 341 ms |
 | Outbound input packet | Up to 2048 PCM bytes, approximately 43 ms |
 | Reply packet | Up to 1024 PCM bytes, approximately 21 ms |
-| Playback queue | 32 packets, bounded device memory |
-| Initial playback prebuffer | 10,240 PCM bytes, approximately 213 ms |
-| Playback startup alternatives | End-of-audio for a short reply, or a 500 ms fallback after first data |
-| Negotiated playback window | 16 packets in flight; legacy devices default to one |
+| Playback queue | 48 packets, bounded device memory |
+| Initial playback prebuffer | 24,576 PCM bytes, approximately 512 ms |
+| Playback startup alternatives | End-of-audio for a short reply, or a 1,000 ms fallback after first data |
+| Negotiated playback window | 32 packets in flight; legacy devices default to one |
 | Maximum held input | 15 seconds |
 | Minimum committed input | 100 ms of samples |
 | Maximum generated reply audio | 30 seconds |
 
-Independent capture prevents a slow network send or OLED redraw from starving microphone DMA. Independent playback and a credit window prevent network round trips from pacing each small audio write. Credits are reported in batches from the main loop after the playback worker consumes packets into I²S. Ready is withheld until the queue and DMA have drained.
+Independent capture prevents a slow network send or OLED redraw from starving microphone DMA. Independent playback and a credit window prevent network round trips from pacing each small audio write. Credits are reported in batches from the main loop after the playback worker consumes packets into I²S. Ready is withheld until the queue and DMA have drained. The main loop reads a mic block with at most a 2 ms wait, then drains up to 16 additional queued blocks per pass so backlog can shrink after OLED/network delays. Playback refills after a queue underrun longer than DMA headroom. The backend coalesces provider deltas into full 1024-byte packets, with one optional short final tail.
 
 The offline bench target keeps 16 kHz I²S, a PCM24 meter, and 100 kHz OLED transfers. The voice target uses 400 kHz during OLED frame transfers and a PCM16 idle meter.
 

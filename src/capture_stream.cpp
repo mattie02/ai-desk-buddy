@@ -8,6 +8,7 @@ namespace {
 QueueHandle_t blocks = nullptr;
 SemaphoreHandle_t gate = nullptr;
 uint32_t activeTurn = 0;
+unsigned highWater = 0;
 enum class Fault { None, Read, Overflow, DmaStall };
 Fault fault = Fault::None;
 
@@ -30,6 +31,10 @@ void captureTask(void *) {
     else if (activeTurn && now - lastRead > 35) fault = Fault::DmaStall;
     // Never wait for the network: 64 PCM blocks provide ~341 ms of bounded headroom.
     if (valid && xQueueSend(blocks, &block, 0) != pdTRUE && activeTurn) fault = Fault::Overflow;
+    if (activeTurn) {
+      const unsigned queued = uxQueueMessagesWaiting(blocks);
+      if (queued > highWater) highWater = queued;
+    }
     xSemaphoreGive(gate);
     lastRead = now;
     if (!valid) vTaskDelay(pdMS_TO_TICKS(10));
@@ -57,6 +62,7 @@ void captureBegin(uint32_t turn) {
   xQueueReset(blocks); // Discard idle samples; each turn starts with a fresh queue.
   if (fault != Fault::Read) fault = Fault::None;
   activeTurn = turn;
+  highWater = 0;
   xSemaphoreGive(gate);
 }
 
@@ -69,6 +75,14 @@ void captureEnd() {
 
 bool captureRead(CaptureBlock &block, uint32_t waitMs) {
   return blocks && xQueueReceive(blocks, &block, pdMS_TO_TICKS(waitMs)) == pdTRUE;
+}
+unsigned capturePending() { return blocks ? uxQueueMessagesWaiting(blocks) : 0; }
+unsigned captureHighWater() {
+  if (!gate) return 0;
+  xSemaphoreTake(gate, portMAX_DELAY);
+  const unsigned result = highWater;
+  xSemaphoreGive(gate);
+  return result;
 }
 
 const char *captureFault() {
@@ -88,5 +102,7 @@ bool captureStreamInit() { return true; }
 void captureBegin(uint32_t) {}
 void captureEnd() {}
 bool captureRead(CaptureBlock &, uint32_t) { return false; }
+unsigned capturePending() { return 0; }
+unsigned captureHighWater() { return 0; }
 const char *captureFault() { return nullptr; }
 #endif

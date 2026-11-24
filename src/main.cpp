@@ -316,12 +316,12 @@ bool initAudio() {
   return true;
 }
 
-bool captureMeter() {
+bool captureMeter(uint32_t waitMs = 10) {
   int32_t samples[kBlockFrames * 2];
   size_t bytesRead = 0;
   if (kVoiceBuild) {
     CaptureBlock block;
-    if (!captureRead(block, 10)) return true;
+    if (!captureRead(block, waitMs)) return true;
     voiceCapture(block);
     if (!meterEnabled || !voiceIdle()) return true;
     for (size_t i = 0; i < block.frames; ++i) {
@@ -470,7 +470,16 @@ void loop() {
     resetMeter();
     discardUntil = millis() + 200;
   }
-  if (ready && !captureMeter()) {
+  bool captureOk = true;
+  if (ready) {
+    captureOk = captureMeter(kVoiceBuild ? 2 : 10);
+    // One block per loop cannot catch up after an OLED/network delay. Drain a
+    // bounded batch, then return to touch/network processing rather than starve it.
+    for (unsigned i = 0; kVoiceBuild && captureOk && i < 16 && capturePending(); ++i) {
+      captureOk = captureMeter(0);
+    }
+  }
+  if (ready && !captureOk) {
     ready = false;
     oledDirty = true;
     i2s_stop(kPort);

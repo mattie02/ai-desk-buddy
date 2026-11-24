@@ -27,6 +27,7 @@ uint32_t recordingFrames = 0;
 uint8_t pendingPcm[2048]; // ~43 ms packets reduce per-message Wi-Fi overhead.
 size_t pendingBytes = 0;
 uint32_t lastWifiAttempt = 0;
+uint32_t maxSendMs = 0;
 bool echoMode = false;
 bool wifiEnabled = true;
 
@@ -108,7 +109,11 @@ void abortConnection(const char *reason) {
 
 bool flushPcm() {
   if (!pendingBytes) return true;
-  if (!connected || !socket.sendBIN(pendingPcm, pendingBytes)) {
+  const uint32_t before = millis();
+  const bool sent = connected && socket.sendBIN(pendingPcm, pendingBytes);
+  const uint32_t duration = millis() - before;
+  if (duration > maxSendMs) maxSendMs = duration;
+  if (!sent) {
     abortConnection("audio send failed");
     return false;
   }
@@ -124,6 +129,8 @@ void endTurn() {
   captureEnd();
   if (const char *error = captureFault()) { abortConnection(error); return; }
   if (!flushPcm()) return;
+  Serial.printf("Capture turn %lu: queue high-water=%u/64 blocks, max audio send=%lu ms, RSSI=%d dBm, heap=%u\n",
+                static_cast<unsigned long>(turn), captureHighWater(), static_cast<unsigned long>(maxSendMs), WiFi.RSSI(), ESP.getFreeHeap());
   recording = false;
   waitingForRelease = true;
   setPhase(Phase::Thinking);
@@ -311,6 +318,7 @@ void voiceTouch(bool pressed) {
   recordingFrames = 0;
   pendingBytes = 0;
   captureBegin(turn);
+  maxSendMs = 0;
   recording = true;
   setPhase(Phase::Listening);
   if (!sendControl("begin")) abortConnection("could not begin turn");

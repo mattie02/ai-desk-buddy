@@ -2,7 +2,7 @@
 #include <Arduino.h>
 
 using PlaybackSink = bool (*)(const uint8_t *, size_t, bool);
-constexpr unsigned kPlaybackWindow = 16;
+constexpr unsigned kPlaybackWindow = 32;
 struct PlaybackProgress {
   unsigned acknowledgements = 0;
   bool complete = false;

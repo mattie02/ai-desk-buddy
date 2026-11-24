@@ -90,3 +90,11 @@ Physical cancellation retest: updated firmware uploaded with flash hash verifica
 Offline regression with the new firmware: an accepted 10-second timer continued with ESP32 Wi-Fi held off at five seconds remaining. Serial showed countdown to expiry and `TIMER completion tone played locally`. After enabling reconnection, a device-confirmed status receipt for the same timer reported completed=true, running=false, remaining_seconds=0. This is serial/device evidence; it does not add a new user-confirmed listening result.
 
 Spoken duration formatting update: 27 automated checks pass, including 104 seconds → 1 minute and 44 seconds, hours with a zero minutes component, exact minutes/hours, singular/plural, and zero remaining time. The voice tool result carries the formatted phrase while preserving the original device seconds. The revised phrasing has not yet had a separate listening confirmation.
+
+## Repeated-turn reliability regression
+
+After the initial spoken-timer acceptance, the user reported renewed choppiness and failed holds. Serial captured repeated `network capture buffer overflow` failures. Backend/serial playback diagnostics recorded gaps up to 288 ms, including one reply with ten queue gaps. A separate overlong model reply caused `reply_too_long` and a reconnect. These later observations qualify the earlier smooth-playback bench result.
+
+The main loop previously consumed only one mic block per pass, preventing backlog from shrinking after OLED/network delays. It now drains bounded batches and limits the first capture wait to 2 ms. Reply audio is coalesced into full packets, the playback window is 32 with a 48-packet queue, startup buffering is approximately 512 ms, and an underrun triggers refill before resuming. Overlong replies now stop at the existing 30-second cap and finish playback without a device reconnect. End-of-capture serial summaries report queue high-water, maximum audio-send time, RSSI, and free heap.
+
+Both firmware targets build and all 29 automated tests pass, including tiny audio deltas, the larger bounded window, and overlong reply completion without a reconnect. Hardware repeated-turn listening/hold acceptance for this revision is pending.

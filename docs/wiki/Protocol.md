@@ -19,13 +19,13 @@ The backend allows one authenticated device. Binary/text payloads from clients a
   "type": "hello",
   "token": "GENERATED_DEVICE_TOKEN",
   "sample_rate": 24000,
-  "playback_window": 16,
+  "playback_window": 32,
   "timer_support": 1,
   "timer_cancel_support": 1
 }
 ```
 
-The backend validates the token and sample rate. It accepts an integer playback window of 1–16; missing means legacy window 1. `timer_support:1` makes the device eligible for timer requests. `timer_cancel_support:1` additionally enables targeted cancellation and spoken tools. Ready is sent only after echo is available or Realtime acknowledges configuration.
+The backend validates the token and sample rate. It accepts an integer playback window of 1–32; missing means legacy window 1. `timer_support:1` makes the device eligible for timer requests. `timer_cancel_support:1` additionally enables targeted cancellation and spoken tools. Ready is sent only after echo is available or Realtime acknowledges configuration.
 
 ```json
 {"type":"ready","sample_rate":24000,"mode":"realtime"}
@@ -39,7 +39,7 @@ Status messages contain the current turn and one of Listening, Thinking, or Spea
 
 ## Reply audio and credits
 
-The backend decodes `response.output_audio.delta` and applies the configured master gain. Echo mode additionally applies one level-correction factor to the entire recorded turn. It divides output into packets of at most 1024 bytes.
+The backend decodes `response.output_audio.delta` and applies the configured master gain. Echo mode additionally applies one level-correction factor to the entire recorded turn. It coalesces delta boundaries into full 1024-byte packets, retaining at most 1023 remainder bytes until more audio or end-of-audio. Only the final packet may be shorter.
 
 Up to the advertised window may be in flight. The ESP32 callback enqueues data; a separate playback task writes it into I²S. The main loop sends batched consumed-packet credits:
 
@@ -101,7 +101,7 @@ The device can emit `timer_finished` while connected. Offline completion does no
 
 ## Recovery and API scope
 
-Heartbeat, acknowledgement, setup, input, and reply deadlines bound the session. Malformed messages and failed/stalled audio abort the turn. Device reconnects create a new Realtime conversation. Opening a serial monitor can reset the ESP32, which also clears its RAM timer.
+Heartbeat, acknowledgement, setup, input, and reply deadlines bound the session. Malformed messages and failed/stalled audio abort the turn. If generated audio exceeds the 30-second limit, the backend cancels further generation, sends a `reply_audio_limit` notice, and finishes the accepted audio using the usual credits/drain path instead of disconnecting. The answer can be cut short at this limit. Device reconnects create a new Realtime conversation. Opening a serial monitor can reset the ESP32, which also clears its RAM timer.
 
 Spoken tools use a silent planning response, validated arguments, the same device receipt path, and a final audible response with tools disabled. See [Spoken timers](Spoken-Timers.md). Typed timer requests do not create an OpenAI response.
 
