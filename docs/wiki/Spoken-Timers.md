@@ -39,6 +39,6 @@ Replace `TIMER-ID` with the ID returned by status. This explicit target prevents
 
 ## Validation
 
-The implementation passes 35 automated checks, including delayed/lost receipts, spoken start/status/cancel routing, malformed arguments, cancellation targeting, expiry boundaries, duplicate handling, and audio completion regressions. Both firmware targets build. On November 23, 2026, the user confirmed that spoken start, time-left status, and cancellation all worked and audio was smooth. This physical listening check is separate from the automated mocks.
+The implementation passes 36 automated checks, including delayed/lost receipts, spoken start/status/cancel routing, malformed arguments, cancellation targeting, expiry boundaries, duplicate handling, and audio completion regressions. Both firmware targets build. On November 23, 2026, the user confirmed that spoken start, time-left status, and cancellation all worked and audio was smooth. This physical listening check is separate from the automated mocks.
 
 Implementation follows the [OpenAI Realtime function-calling documentation](https://developers.openai.com/api/docs/guides/realtime-conversations#function-calling), checked November 23, 2026.

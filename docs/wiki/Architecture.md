@@ -30,6 +30,8 @@ The Mac owns API credentials, Realtime sessions, voice, personality, output gain
 | `src/voice_transport.cpp` | Wi-Fi/WebSocket state, push-to-talk messages, timer receipts, playback credits |
 | `src/capture_stream.cpp` | Dedicated priority-2 microphone task and bounded PCM queue |
 | `src/playback_stream.cpp` | Priority-3 audio output task, playback prebuffer, local alarm, progress reporting |
+| `src/wifi_setup.cpp` | Boot-only setup gesture, protected AP/browser flow, connection tests and saved Wi-Fi profiles |
+| `include/wifi_profile.h` / `include/setup_http.h` | Native-testable profile/record validation, boot gesture and bounded setup HTTP parser |
 | `src/focus_timer.cpp` | Priority-2 local timer task, monotonic deadline, snapshots, one-shot completion |
 | `include/focus_clock.h` | Platform-independent timer rules, also compiled in native tests |
 

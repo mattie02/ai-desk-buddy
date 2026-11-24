@@ -22,5 +22,5 @@ if (existsSync(envPath) || existsSync(secretPath)) {
   writeFileSync(envPath, env, { mode: 0o600, flag: 'wx' });
   writeFileSync(secretPath, secret, { mode: 0o600, flag: 'wx' });
   console.log(`Created ${fileURLToPath(envPath)} and ${fileURLToPath(secretPath)} with matching device tokens.`);
-  console.log('Edit Wi-Fi and Mac IP in secrets.h. Start with BACKEND_MODE=echo in .env; add your API key locally for realtime mode.');
+  console.log('Check Mac IP in secrets.h. Configure Wi-Fi using the OLED phone setup, or fill the optional Wi-Fi fallback fields locally. Start with BACKEND_MODE=echo in .env; add your API key locally for realtime mode.');
 }

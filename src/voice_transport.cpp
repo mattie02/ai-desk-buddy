@@ -6,6 +6,7 @@
 #include <ArduinoJson.h>
 #include "playback_stream.h"
 #include "focus_timer.h"
+#include "wifi_setup.h"
 #if __has_include("secrets.h")
 #include "secrets.h"
 #else
@@ -221,9 +222,10 @@ void onSocket(WStype_t type, uint8_t *payload, size_t length) {
 
 void voiceInit(BuddyPlayback playback, BuddyChanged onChanged) {
   changed = onChanged;
-  configured = strlen(BUDDY_WIFI_SSID) && strlen(BUDDY_SERVER_HOST) && strlen(BUDDY_DEVICE_TOKEN) >= 24;
+  wifiSetupInit(BUDDY_WIFI_SSID, BUDDY_WIFI_PASSWORD, onChanged);
+  configured = strlen(BUDDY_SERVER_HOST) && strlen(BUDDY_DEVICE_TOKEN) >= 24;
   if (!configured) {
-    Serial.println("Voice setup required: edit include/secrets.h with Wi-Fi, Mac LAN IP, and device token.");
+    Serial.println("Backend setup required: edit include/secrets.h with Mac LAN IP and device token. Wi-Fi setup is separate.");
     return;
   }
   if (!playbackInit(playback)) {
@@ -232,11 +234,6 @@ void voiceInit(BuddyPlayback playback, BuddyChanged onChanged) {
     Serial.println("Voice: could not allocate playback worker");
     return;
   }
-  WiFi.persistent(false);
-  WiFi.mode(WIFI_STA);
-  WiFi.setSleep(false);
-  WiFi.setAutoReconnect(true);
-  WiFi.begin(BUDDY_WIFI_SSID, BUDDY_WIFI_PASSWORD);
   lastWifiAttempt = millis();
   socket.onEvent(onSocket);
   socket.begin(BUDDY_SERVER_HOST, BUDDY_SERVER_PORT, "/buddy");
@@ -246,7 +243,12 @@ void voiceInit(BuddyPlayback playback, BuddyChanged onChanged) {
 }
 
 void voiceLoop() {
+  const bool setupWasActive = wifiSetupActive();
+  wifiSetupLoop();
+  if (wifiSetupActive()) return;
+  if (setupWasActive) { lastWifiAttempt = millis(); waitingForRelease = true; }
   if (!configured) return;
+  if (!wifiSetupHasProfile()) { setPhase(Phase::Setup); return; }
   FocusSnapshot completed;
   if (focusTimerCompletion(completed)) {
     if (changed) changed();
@@ -299,6 +301,7 @@ void voiceLoop() {
 }
 
 void voiceTouch(bool pressed) {
+  if (wifiSetupActive()) { waitingForRelease = true; return; }
   if (!pressed) {
     waitingForRelease = false;
     if (recording) {
@@ -358,7 +361,7 @@ const char *voiceStatus() {
   return "Offline";
 }
 const char *voiceHint() {
-  if (phase == Phase::Setup) return "Configure Wi-Fi";
+  if (phase == Phase::Setup) return wifiSetupHasProfile() ? "Configure backend" : "Hold pad + reset";
   if (phase == Phase::Offline) return "Check Wi-Fi / Mac";
   if (phase == Phase::Connecting) return "Backend connecting";
   if (phase == Phase::Error) return "Release and retry";

@@ -12,6 +12,7 @@ Read the [GitHub wiki](https://github.com/mattie02/ai-desk-buddy/wiki) or the ve
 | --- | --- |
 | [Hardware and wiring](docs/wiki/Hardware-and-Wiring.md) | Parts, GPIO map, power arrangement, module identification |
 | [Setup and operation](docs/wiki/Setup-and-Operation.md) | Fresh checkout, local configuration, build, upload, echo, AI replies |
+| [Wi-Fi setup](docs/wiki/Wi-Fi-Setup.md) | Phone provisioning, saved profiles, recovery |
 | [Architecture](docs/wiki/Architecture.md) | ESP32 tasks, Mac backend, audio buffers, timer ownership |
 | [Protocol](docs/wiki/Protocol.md) | Audio flow, playback credits, timer requests and receipts |
 | [Usage and costs](docs/wiki/Usage-and-Costs.md) | Token counts and per-turn/session cost estimates |
@@ -29,7 +30,7 @@ As of November 23, 2026:
 - Local echo and live AI replies are bench verified.
 - Dedicated capture/playback tasks and buffered playback resolved the reported disconnect and stutter issues in physical retests.
 - A typed 10-second timer completed with ESP32 Wi-Fi held off; the user confirmed the countdown and both chimes. Its completed state remained after reconnecting.
-- Both PlatformIO targets build, and the last verification run passed all **35 tests**.
+- Both PlatformIO targets build, and the last verification run passed all **36 tests**.
 - Spoken timer tools and targeted typed cancellation are implemented; the user confirmed spoken start/status/cancel and smooth audio. Persistence across power loss is not implemented.
 
 ## Quick start

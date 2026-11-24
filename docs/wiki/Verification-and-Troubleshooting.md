@@ -112,3 +112,7 @@ During the first usage-reporting check, the user saw `Time up`. A device-confirm
 ## Live usage acceptance
 
 The user confirmed hearing the reply. The authenticated local report returned a complete estimate covering both silent planning and spoken output. Actual token counts, cache counts, and cost records remain local and are not published here. This validates usage reporting; network stress testing remains deferred.
+
+## Wi-Fi provisioning implementation
+
+Both firmware targets build and all 36 automated tests pass, including a new native sanitized suite for credentials, persistent record integrity, startup gestures, and bounded setup HTTP/form parsing. The page JavaScript also passes a syntax check. The voice firmware uploaded with flash hash verification and reached Realtime Ready through the legacy fallback. Phone setup, wrong-password recovery, save/reboot persistence, and post-setup voice/timer checks are pending. No real Wi-Fi credentials are included in these records.

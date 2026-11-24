@@ -17,13 +17,14 @@ AI Desk Buddy is a working breadboard prototype: hold a capacitive touch pad, sp
 | Buffered playback | User reported smooth playback after the stutter fix |
 | Typed local focus timer | 10-second countdown and two chimes verified with ESP32 Wi-Fi held off |
 | Spoken focus timer | User confirmed start, time-left status, cancellation, and smooth audio |
-| Automated checks | Last run: 35 tests passed; both firmware targets build |
+| Automated checks | Last run: 36 tests passed; both firmware targets build |
 
 Spoken timer tools and targeted typed cancellation are implemented; the user confirmed spoken start/status/cancel and smooth audio. **Not implemented:** timer persistence across reset/power loss and an enclosure/single-cable design.
 
 ## Find the right guide
 
 - [Hardware and wiring](Hardware-and-Wiring.md): exact GPIO and power connections.
+- [Wi-Fi setup](Wi-Fi-Setup.md): change networks from a phone without reflashing.
 - [Setup and operation](Setup-and-Operation.md): run a fresh checkout, then echo and Realtime.
 - [Architecture](Architecture.md): how the ESP32 and Mac divide the work.
 - [Protocol](Protocol.md): messages, PCM formats, credits, and timer receipts.

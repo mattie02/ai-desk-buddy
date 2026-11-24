@@ -11,7 +11,7 @@
 
 ## Completed: spoken timer tools
 
-Spoken start/status/cancel and targeted typed cancellation are implemented. See [Spoken timers](Spoken-Timers.md) for behavior. Both firmware builds and 35 automated tests pass. The user confirmed that spoken start, time-left status, and cancellation all worked, with smooth audio.
+Spoken start/status/cancel and targeted typed cancellation are implemented. See [Spoken timers](Spoken-Timers.md) for behavior. Both firmware builds and 36 automated tests pass. The user confirmed that spoken start, time-left status, and cancellation all worked, with smooth audio.
 
 Bench acceptance passed for spoken start/status/cancel and smooth audio. The updated firmware also passed physical targeted cancellation and Wi-Fi-disconnected completion checks. Busy and lost-receipt behavior are covered by automated tests; those fault outcomes have not been separately confirmed by listening on hardware.
 
@@ -23,11 +23,11 @@ Run longer network outages and repeated voice turns, including busy starts and l
 
 ## Implemented: API usage and cost reporting
 
-The backend counts final-response usage for silent planning and spoken replies, applies a verified pricing snapshot, and provides `npm run usage` for turn/session/process totals. Missing usage and unknown prices remain explicitly incomplete. All 35 tests pass. Live verification also passed: the user confirmed hearing the reply and the authenticated usage report returned a complete estimate. See [Usage and costs](Usage-and-Costs.md).
+The backend counts final-response usage for silent planning and spoken replies, applies a verified pricing snapshot, and provides `npm run usage` for turn/session/process totals. Missing usage and unknown prices remain explicitly incomplete. All 36 tests pass. Live verification also passed: the user confirmed hearing the reply and the authenticated usage report returned a complete estimate. See [Usage and costs](Usage-and-Costs.md).
 
-## Next: Wi-Fi setup from a phone
+## Current: Wi-Fi setup from a phone
 
-Add a local setup flow so changing Wi-Fi does not require editing `secrets.h` or reflashing. This is planned, not implemented.
+Add a local setup flow so changing Wi-Fi does not require editing `secrets.h` or reflashing. The firmware implementation and 36 automated checks are complete; phone/hardware acceptance is pending.
 
 1. Hold the touch pad during startup to explicitly enter setup mode.
 2. Show a temporary, password-protected access point's name and setup instructions on the OLED.

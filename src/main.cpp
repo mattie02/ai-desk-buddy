@@ -6,6 +6,7 @@
 #include <cmath>
 #include "voice_transport.h"
 #include "focus_timer.h"
+#include "wifi_setup.h"
 
 namespace {
 constexpr i2s_port_t kPort = I2S_NUM_0;
@@ -52,6 +53,25 @@ constexpr uint32_t kCompletionNoticeMs = 8000;
 void renderStatus() {
   if (!oledDirty) return;
   oledDirty = false;
+  if (kVoiceBuild && wifiSetupActive()) {
+    if (!oledReady) return;
+    oled.clearDisplay(); oled.setTextColor(SSD1306_WHITE); oled.setTextSize(1); oled.setCursor(0, 0);
+    oled.println("WI-FI SETUP");
+    if (wifiSetupHolding()) {
+      oled.setCursor(0, 18); oled.println("Keep holding pad...");
+      oled.println("3 seconds for setup"); oled.println("Release for normal");
+    } else {
+      oled.setCursor(0, 12); oled.print("AP: "); oled.println(wifiSetupApName());
+      oled.setCursor(0, 23); oled.print("PW: "); oled.println(wifiSetupApPassword());
+      oled.setCursor(0, 34); oled.println("http://192.168.4.1");
+      oled.setCursor(0, 45);
+      // The browser has the detailed status; the OLED keeps the connection instructions visible.
+      const char *text = wifiSetupMessage();
+      for (unsigned i = 0; text[i] && i < 21; ++i) oled.print(text[i]);
+      oled.setCursor(0, 56); oled.print("Closes after 5 min");
+    }
+    oled.display(); return;
+  }
   const char *status = !ready && !toneActive ? "Starting" : "Ready";
   if (touchPressed) status = "Listening";
   if (thinkingDemo) status = "Thinking";

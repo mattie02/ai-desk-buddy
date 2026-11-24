@@ -3,6 +3,7 @@
 - [Home](Home.md)
 - [Hardware and wiring](Hardware-and-Wiring.md)
 - [Setup and operation](Setup-and-Operation.md)
+- [Wi-Fi setup](Wi-Fi-Setup.md)
 - [Architecture](Architecture.md)
 - [Protocol](Protocol.md)
 - [Usage and costs](Usage-and-Costs.md)

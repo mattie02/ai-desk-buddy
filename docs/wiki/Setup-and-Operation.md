@@ -25,13 +25,15 @@ Edit `include/secrets.h` locally:
 
 | Setting | Value |
 | --- | --- |
-| `BUDDY_WIFI_SSID` | 2.4 GHz Wi-Fi name |
-| `BUDDY_WIFI_PASSWORD` | Wi-Fi password; escape quotes/backslashes in the C++ string |
+| `BUDDY_WIFI_SSID` | Optional legacy 2.4 GHz Wi-Fi name |
+| `BUDDY_WIFI_PASSWORD` | Optional legacy Wi-Fi fallback; saved phone setup takes priority. Escape quotes/backslashes in a C++ fallback string |
 | `BUDDY_SERVER_HOST` | Mac LAN IPv4 address, not `localhost`; recheck after DHCP/network changes |
 | `BUDDY_SERVER_PORT` | 8765 unless changed on both sides |
 | `BUDDY_DEVICE_TOKEN` | Generated token, matching `DEVICE_TOKEN` in `.env` |
 
 Real credentials stay out of chat, commits, and documentation. The tracked `.env.example` and `secrets.example.h` contain empty credential placeholders. Build artifacts and generated dependency folders are also ignored by Git.
+
+You can instead leave the Wi-Fi fallback fields blank and use [phone Wi-Fi setup](Wi-Fi-Setup.md). Hold the pad through EN/RESET to change an existing profile; keep holding until the OLED shows AP/PW instructions. Backend host/token configuration is still required.
 
 ## Backend settings
 
